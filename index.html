@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236366f1'/%3E%3Cpath d='M30 22 H70 M30 50 H60 M30 78 H70 M30 22 V78' stroke='%23ffffff' stroke-width='12' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 100'%3E%3Crect width='120' height='100' rx='22' fill='%2313161f'/%3E%3Cpath d='M44 20 L84 20 Q88 20 88 24 L88 56 Q88 60 84 60 L44 60 L34 56 L44 53 L23 49 L44 46 L32 42 L44 39 L20 35 L44 32 L28 28 L44 25 L21 21 Z' fill='%23e8913a'/%3E%3Ctext x='66' y='44' text-anchor='middle' font-family='Arial Black, Arial, sans-serif' font-weight='900' font-size='20' fill='%230f1117'%3EET%3C/text%3E%3Cpath d='M92 24 L106 24 L114 38 L114 60 L92 60 Z' fill='%23e8913a'/%3E%3Cpath d='M97 30 L104 30 L109 38 L97 38 Z' fill='%230f1117'/%3E%3Ccircle cx='48' cy='64' r='9' fill='%23ffffff'/%3E%3Ccircle cx='48' cy='64' r='4' fill='%230f1117'/%3E%3Ccircle cx='104' cy='64' r='9' fill='%23ffffff'/%3E%3Ccircle cx='104' cy='64' r='4' fill='%230f1117'/%3E%3Cg stroke='%23ffffff' stroke-width='4' stroke-linecap='round' opacity='0.75' fill='none'%3E%3Cpath d='M40 24 H78'/%3E%3Cpath d='M42 52 H74'/%3E%3Cpath d='M95 47 H111'/%3E%3C/g%3E%3C/svg%3E">
   <title>Lista con código de transporte</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -24,11 +24,19 @@
     ::-webkit-scrollbar { width: 5px; height: 5px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
     .container { max-width: 1100px; margin: auto; position: relative; z-index: 1; }
     .page-header { text-align: center; margin-bottom: 32px; }
-    .page-header .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); margin-bottom: 14px; }
-    .page-header .badge i { color: var(--accent); }
+    .page-header .badge { display: inline-flex; align-items: center; gap: 7px; padding: 5px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); margin-bottom: 14px; }
+    .et-truck { width: 40px; height: auto; flex-shrink: 0; display: block; filter: drop-shadow(0 2px 6px rgba(232,145,58,0.35)); }
+    .et-truck .speed-lines line { stroke-dasharray: 5 7; animation: speedFlow 0.45s linear infinite; }
+    .et-truck .speed-lines .sl-2 { animation-delay: 0.16s; }
+    .et-truck .speed-lines .sl-3 { animation-delay: 0.32s; }
+    @keyframes speedFlow { to { stroke-dashoffset: 12; } }
+    @media (prefers-reduced-motion: reduce) { .et-truck .speed-lines line { animation: none; } }
     .page-header h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
     .page-header h1 span { color: var(--accent); }
+    /* Barra de estado compacta (solo icono cuando no hay texto) */
     .status { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; margin-bottom: 24px; font-size: 13px; font-weight: 500; color: var(--fg-muted); animation: fadeUp 0.4s ease; }
+    .status.ok { padding: 8px 12px; width: fit-content; }
+    .status.ok span:empty { display: none; }
     .status i { font-size: 14px; } .status.ok i { color: var(--success); } .status.warn i { color: var(--warning); } .status.err i { color: var(--danger); } .status.load i { color: var(--info); animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -47,7 +55,6 @@
     .btn-guardar.guardando { pointer-events: none; opacity: 0.7; } .btn-guardar.guardando i { animation: spin 0.8s linear infinite; }
     .section-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: var(--fg); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
     .section-title .count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; background: var(--accent-glow); border: 1px solid rgba(232,145,58,0.2); color: var(--accent); font-size: 12px; font-weight: 700; }
-    /* Indicador de inactividad */
     .inactividad-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 8px; font-size: 11px; font-weight: 600; margin-bottom: 16px; animation: fadeUp 0.3s ease; }
     .inactividad-bar.ok { background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.15); color: var(--success); }
     .inactividad-bar.warn { background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.15); color: var(--warning); animation: inactPulse 2s ease-in-out infinite; }
@@ -57,21 +64,21 @@
     .inactividad-bar .inact-time { font-family: 'Space Grotesk', monospace; font-weight: 700; }
     .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 24px; animation: fadeUp 0.45s ease 0.1s both; }
     .table-scroll { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    /* ★ PATCH H1 — tabla de 3 columnas (sector/horario pasan bajo el GPS) */
+    table { width: 100%; border-collapse: collapse; min-width: 560px; }
     thead { background: var(--bg-surface); }
     th { padding: 12px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
     th i { margin-right: 4px; font-size: 10px; opacity: 0.7; }
     td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
     tbody tr { transition: background 0.2s ease; } tbody tr:nth-child(even) { background: var(--row-alt); } tbody tr:hover { background: var(--card-hover); } tbody tr:last-child td { border-bottom: none; }
     .row-num { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; color: var(--fg-muted); background: var(--bg); border-radius: 6px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; }
-    .item-name { font-weight: 500; color: var(--fg); }
-    .tbl-input { background: var(--bg); border: 1.5px solid var(--border); color: var(--fg); border-radius: 8px; padding: 9px 12px; font-family: 'DM Sans', sans-serif; font-size: 13px; width: 100%; min-width: 100px; outline: none; transition: all 0.25s ease; height: 40px; }
-    .tbl-input::placeholder { color: #4a5068; } .tbl-input:hover { border-color: #3a4060; } .tbl-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-    .tbl-input.time { min-width: 120px; cursor: pointer; } .tbl-input.sector { text-transform: uppercase; }
-    select.tbl-input { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237b829a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 14px; padding-right: 30px; }
-    select.tbl-input option { background: var(--bg-surface); color: var(--fg); }
-    .gps-cell { display: flex; flex-direction: column; gap: 5px; min-width: 120px; }
-    .gps-btn-row { display: flex; align-items: center; gap: 5px; }
+    /* Nombre: máx. 2 líneas — 250px escritorio */
+    td.celda-nombre { max-width: 250px; }
+    td.celda-nombre .item-name-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; word-wrap: break-word; font-weight: 500; color: var(--fg); }
+    .info-sector { color: #ffffff; font-size: 12.5px; font-weight: 600; letter-spacing: 0.03em; white-space: nowrap; }
+    .info-horario { color: #ffffff; font-size: 12.5px; font-weight: 500; font-family: 'Space Grotesk', sans-serif; white-space: nowrap; }
+    .gps-cell { display: flex; flex-direction: column; gap: 5px; min-width: 140px; }
+    .gps-btn-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .btn-gps { display: inline-flex; align-items: center; gap: 5px; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 11px; padding: 6px 12px; border-radius: 7px; border: 1.5px solid rgba(96,165,250,0.25); background: rgba(96,165,250,0.08); color: var(--info); cursor: pointer; transition: all 0.25s ease; white-space: nowrap; width: fit-content; }
     .btn-gps:hover { background: rgba(96,165,250,0.18); border-color: var(--info); transform: translateY(-1px); box-shadow: 0 3px 12px rgba(96,165,250,0.15); } .btn-gps:active { transform: scale(0.95); }
     .btn-gps.capturando { pointer-events: none; opacity: 0.65; } .btn-gps.capturando i { animation: spin 1s linear infinite; }
@@ -80,14 +87,27 @@
     .btn-gps-eliminar { display: none; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgba(248,113,113,0.25); background: rgba(248,113,113,0.06); color: var(--danger); cursor: pointer; transition: all 0.2s ease; font-size: 9px; flex-shrink: 0; }
     .btn-gps-eliminar:hover { background: rgba(248,113,113,0.18); border-color: var(--danger); transform: scale(1.15); }
     .gps-btn-row.tiene-gps .btn-gps-eliminar { display: inline-flex; }
-    .gps-coords { font-family: 'Space Grotesk', monospace; font-size: 10px; color: var(--fg-muted); line-height: 1.4; padding: 4px 7px; background: var(--bg); border-radius: 5px; border: 1px solid var(--border); word-break: break-all; display: none; }
-    .gps-coords.visible { display: block; animation: fadeUp 0.3s ease; }
-    .gps-coords .lat-label, .gps-coords .lng-label { color: var(--info); font-weight: 600; }
-    .gps-coords.capturado { border-color: rgba(52,211,153,0.2); } .gps-coords.capturado .lat-label, .gps-coords.capturado .lng-label { color: var(--success); }
-    .gps-link { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; color: var(--info); text-decoration: none; opacity: 0; height: 0; overflow: hidden; transition: all 0.3s ease; }
-    .gps-link.visible { opacity: 0.85; height: auto; margin-top: 1px; } .gps-link:hover { opacity: 1; text-decoration: underline; }
+    .gps-mini { display: none; align-items: center; gap: 4px; font-family: 'Space Grotesk', monospace; font-size: 10px; line-height: 1.3; text-decoration: none; white-space: nowrap; }
+    .gps-mini.on { display: inline-flex; }
+    .gps-mini:hover { text-decoration: underline; }
+    .gps-mini-orig, .gps-mini-orig:hover { color: var(--accent); }
+    .gps-mini-nueva, .gps-mini-nueva:hover { color: var(--success); }
+    .gps-mini .mini-tag { font-weight: 700; font-size: 9px; padding: 1px 4px; border-radius: 3px; }
+    .gps-mini-orig .mini-tag { background: var(--accent-glow); color: var(--accent); }
+    .gps-mini-nueva .mini-tag { background: rgba(52,211,153,0.15); color: var(--success); }
+    /* ★ PATCH I1 — mini original: solo icono llamativo + tag "original" */
+    .gps-mini-orig i { font-size: 13px; animation: origPulse 2.2s ease-in-out infinite; text-shadow: 0 0 8px rgba(232,145,58,0.55); }
+    @keyframes origPulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.25); opacity: 0.75; } }
+    @media (prefers-reduced-motion: reduce) { .gps-mini-orig i { animation: none; } }
+    /* ★ PATCH M1 — icono de entrega un poco más visible */
+    .gps-mini-nueva i { font-size: 13px; text-shadow: 0 0 8px rgba(52,211,153,0.55); }
     .gps-error-detail { font-size: 10px; color: var(--danger); line-height: 1.5; padding: 5px 7px; background: rgba(248,113,113,0.04); border-radius: 5px; border: 1px solid rgba(248,113,113,0.12); display: none; animation: fadeUp 0.3s ease; }
     .gps-error-detail.visible { display: block; }
+    .gps-distancia { display: none; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 5px; width: fit-content; margin-top: 2px; }
+    .gps-distancia.visible { display: block; }
+    .gps-distancia.dist-ok { background: rgba(52,211,153,0.08); color: var(--success); border: 1px solid rgba(52,211,153,0.2); }
+    .gps-distancia.dist-warn { background: rgba(251,191,36,0.08); color: var(--warning); border: 1px solid rgba(251,191,36,0.2); }
+    .gps-distancia.dist-bad { background: rgba(248,113,113,0.08); color: var(--danger); border: 1px solid rgba(248,113,113,0.2); }
     .gps-error-detail .gps-error-title { font-weight: 700; font-size: 10px; margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
     .gps-error-detail .gps-error-title.gps-off { color: var(--warning); } .gps-error-detail .gps-error-title.perm-denied { color: var(--danger); } .gps-error-detail .gps-error-title.no-signal { color: var(--info); } .gps-error-detail .gps-error-title.timeout { color: var(--fg-muted); }
     .gps-error-detail ul { margin: 3px 0 0 14px; padding: 0; list-style: disc; } .gps-error-detail li { margin-bottom: 2px; } .gps-error-detail strong { color: #fca5a5; }
@@ -107,6 +127,11 @@
     .gps-modal-btns { display: flex; gap: 8px; } .gps-modal-btns .btn { flex: 1; justify-content: center; font-size: 13px; padding: 10px 14px; }
     .btn-modal-cancel { background: var(--bg); color: var(--fg-muted); border: 1.5px solid var(--border); } .btn-modal-cancel:hover { border-color: var(--fg-muted); color: var(--fg); }
     .btn-modal-retry { background: rgba(251,191,36,0.12); color: var(--warning); border: 1.5px solid rgba(251,191,36,0.3); } .btn-modal-retry:hover { background: rgba(251,191,36,0.2); border-color: var(--warning); }
+    .gps-modal.confirm-variante { border-color: rgba(96,165,250,0.25); }
+    .gps-modal.confirm-variante h3 { color: var(--info); }
+    .gps-modal.confirm-variante .gps-modal-icon { background: rgba(96,165,250,0.08); border-color: rgba(96,165,250,0.2); }
+    .gps-modal.confirm-variante .gps-modal-icon i { color: var(--info); animation: none; }
+    .btn-modal-confirm { background: rgba(96,165,250,0.12); color: var(--info); border: 1.5px solid rgba(96,165,250,0.3); } .btn-modal-confirm:hover { background: rgba(96,165,250,0.2); border-color: var(--info); }
     .acciones { display: flex; flex-wrap: wrap; gap: 10px; animation: fadeUp 0.45s ease 0.15s both; }
     #mensaje { margin-top: 16px; font-size: 13px; font-weight: 500; padding: 10px 16px; border-radius: 8px; animation: fadeUp 0.3s ease; }
     #mensaje:empty { display: none; }
@@ -128,13 +153,46 @@
     @keyframes fDot { 0% { transform: translateY(100vh) scale(0); opacity: 0; } 10% { opacity: 0.12; } 90% { opacity: 0.12; } 100% { transform: translateY(-10vh) scale(1); opacity: 0; } }
     .toast-guardado { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--card); border: 1.5px solid var(--success); border-radius: 12px; padding: 14px 24px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: var(--success); box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px rgba(52,211,153,0.1); z-index: 999; opacity: 0; pointer-events: none; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
     .toast-guardado.visible { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; } .toast-guardado i { font-size: 18px; }
+    /* ★ PATCH E2 — Botón mapa completo (abre mapa.html en pestaña nueva) */
+    .btn-mapa { background: rgba(96,165,250,0.1); color: var(--info); border: 1.5px solid rgba(96,165,250,0.25); }
+    .btn-mapa:hover { background: rgba(96,165,250,0.18); border-color: var(--info); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(96,165,250,0.15); }
+    .btn-mapa.disabled { pointer-events: none; opacity: 0.5; }
+    /* ★ PATCH G2 — Permanencia por selección rápida (10m a 2h) */
+    .btn-perm { display: inline-flex; align-items: center; gap: 5px; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 11px; padding: 5px 10px; border-radius: 7px; border: 1.5px solid rgba(167,139,250,0.25); background: rgba(167,139,250,0.08); color: var(--purple); cursor: pointer; transition: all 0.25s ease; white-space: nowrap; width: fit-content; font-variant-numeric: tabular-nums; }
+    .btn-perm:hover { background: rgba(167,139,250,0.16); border-color: var(--purple); transform: translateY(-1px); }
+    .btn-perm:active { transform: scale(0.95); }
+    .btn-perm.completada { border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.08); color: var(--success); }
+    .perm-popover { position: fixed; z-index: 1200; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; box-shadow: 0 14px 40px rgba(0,0,0,0.55); display: none; flex-direction: column; gap: 10px; width: min(268px, calc(100vw - 24px)); }
+    .perm-popover.visible { display: flex; animation: fadeUp 0.2s ease; }
+    .perm-pop-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--purple); display: flex; align-items: center; gap: 6px; }
+    .perm-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+    .perm-chip { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 12px; padding: 7px 0; border-radius: 7px; border: 1.5px solid var(--border); background: var(--bg); color: var(--fg); cursor: pointer; transition: all 0.15s ease; }
+    .perm-chip small { font-size: 9px; font-weight: 600; margin-left: 1px; opacity: 0.6; }
+    .perm-chip:hover { border-color: var(--purple); color: var(--purple); background: rgba(167,139,250,0.08); }
+    .perm-chip.sel { border-color: var(--success); background: rgba(52,211,153,0.12); color: var(--success); }
+    .perm-quitar { align-self: flex-start; display: none; align-items: center; gap: 5px; font-family: 'DM Sans', sans-serif; font-size: 10.5px; font-weight: 600; color: var(--danger); background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.25); padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+    .perm-quitar:hover { background: rgba(248,113,113,0.15); }
+    /* ★ PATCH H1 — Comentario inline + fila de metadatos bajo el GPS */
+    .input-com { flex: 1; min-width: 130px; background: var(--bg); border: 1.5px solid var(--border); color: var(--fg); border-radius: 7px; padding: 5px 10px; font-family: 'DM Sans', sans-serif; font-size: 11.5px; font-weight: 500; outline: none; transition: border-color 0.25s ease, box-shadow 0.25s ease; }
+    .input-com:focus { border-color: var(--info); box-shadow: 0 0 0 3px rgba(96,165,250,0.12); }
+    .input-com::placeholder { color: var(--fg-muted); font-weight: 400; }
+    .gps-sub-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 16px; }
+    .sep-dot { color: var(--fg-muted); opacity: 0.45; font-size: 10px; }
     @media (max-width: 640px) {
       body { padding: 16px 10px 40px; } .code-row { flex-direction: column; } .btn { width: 100%; justify-content: center; } .acciones { flex-direction: column; }
-      th, td { padding: 8px 8px; font-size: 12px; } .tbl-input { font-size: 12px; padding: 8px 10px; height: 38px; } .tbl-input.time { min-width: 100px; }
+      th, td { padding: 8px 8px; font-size: 12px; }
+      /* ★ PATCH I1 — nombre del cliente 30% más corto en móvil (180px → 126px) */
+      td.celda-nombre { max-width: 126px; }
       .expired-card { padding: 36px 20px; } .expired-card h2 { font-size: 22px; }
       .toast-guardado { left: 16px; right: 16px; transform: translateX(0) translateY(20px); } .toast-guardado.visible { transform: translateX(0) translateY(0); }
-      .gps-cell { min-width: 100px; } .btn-gps { font-size: 10px; padding: 5px 9px; } .gps-coords { font-size: 9px; } .gps-error-detail { font-size: 9px; }
+      .gps-cell { min-width: 120px; } .btn-gps { font-size: 10px; padding: 5px 9px; } .gps-mini { font-size: 9px; } .gps-error-detail { font-size: 9px; }
       .gps-modal { padding: 22px 18px; } .gps-modal h3 { font-size: 16px; }
+      .info-sector, .info-horario { font-size: 11px; }
+      .et-truck { width: 34px; }
+      /* ★ PATCH G2/H1 — ajustes móviles */
+      .btn-perm { font-size: 10px; padding: 4px 8px; }
+      .input-com { flex-basis: 100%; min-width: 100%; }
+      .perm-grid { grid-template-columns: repeat(5, 1fr); }
     }
   </style>
 </head>
@@ -166,6 +224,18 @@
     </div>
   </div>
 
+  <div class="gps-modal-overlay" id="confirmModal">
+    <div class="gps-modal confirm-variante">
+      <div class="gps-modal-icon"><i class="fa-solid fa-location-dot"></i></div>
+      <h3>¿Volver a capturar la ubicación?</h3>
+      <p>La entrega ya está marcada como <strong>Entregado</strong>.<br>La ubicación actual será reemplazada por la nueva captura.</p>
+      <div class="gps-modal-btns">
+        <button class="btn btn-modal-cancel" onclick="cerrarConfirmRecaptura()"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+        <button class="btn btn-modal-confirm" onclick="confirmarRecaptura()"><i class="fa-solid fa-satellite-dish"></i> Sí, capturar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-guardado" id="toastGuardado">
     <i class="fa-solid fa-circle-check"></i>
     <span id="toastTexto">Guardado correctamente</span>
@@ -173,33 +243,52 @@
 
   <div class="container" id="mainContent">
     <header class="page-header">
-      <div class="badge"><i class="fa-solid fa-truck-fast"></i> Gestión de entregas</div>
+      <div class="badge">
+        <svg class="et-truck" viewBox="-8 0 116 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="camion-body" fill="#e8913a"
+            d="M22 4 L74 4 Q78 4 78 8 L78 40 Q78 44 74 44 L22 44 L12 40 L22 37 L1 33 L22 30 L10 26 L22 23 L-2 19 L22 16 L6 12 L22 9 L-1 5 Z">
+            <animate attributeName="d" dur="0.45s" repeatCount="indefinite"
+              values="M22 4 L74 4 Q78 4 78 8 L78 40 Q78 44 74 44 L22 44 L12 40 L22 37 L1 33 L22 30 L10 26 L22 23 L-2 19 L22 16 L6 12 L22 9 L-1 5 Z;
+                      M22 4 L74 4 Q78 4 78 8 L78 40 Q78 44 74 44 L22 44 L10 40 L22 37 L-3 33 L22 30 L8 26 L22 23 L-6 19 L22 16 L1 12 L22 9 L-2 5 Z;
+                      M22 4 L74 4 Q78 4 78 8 L78 40 Q78 44 74 44 L22 44 L12 40 L22 37 L1 33 L22 30 L10 26 L22 23 L-2 19 L22 16 L6 12 L22 9 L-1 5 Z"/>
+          </path>
+          <path d="M78 12 L94 12 L102 27 L102 44 L78 44 Z" fill="#e8913a"/>
+          <path d="M83 18 L90 18 L95 27 L83 27 Z" fill="#0f1117"/>
+          <text x="50" y="31" text-anchor="middle" font-family="Space Grotesk, Arial, sans-serif" font-weight="700" font-size="20" fill="#0f1117">ET</text>
+          <circle cx="36" cy="48" r="8" fill="#ffffff"/><circle cx="36" cy="48" r="3.5" fill="#0f1117"/>
+          <circle cx="94" cy="48" r="8" fill="#ffffff"/><circle cx="94" cy="48" r="3.5" fill="#0f1117"/>
+          <g class="speed-lines" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.7">
+            <line class="sl-1" x1="28" y1="10" x2="68" y2="10"/>
+            <line class="sl-2" x1="30" y1="36" x2="66" y2="36"/>
+            <line class="sl-3" x1="82" y1="33" x2="98" y2="33"/>
+          </g>
+        </svg>
+        Gestión de entregas
+      </div>
       <h1>* <span>Transporte</span></h1>
     </header>
     <div class="status load" id="estadoServidor"><i class="fa-solid fa-circle-notch"></i><span>Conectando con el servidor...</span></div>
     <div class="code-section">
       <div class="code-section-label"><i class="fa-solid fa-key"></i> Introduce tu código de transporte</div>
       <div class="code-row">
-        <input type="text" class="code-input" id="codigoTransporteInput" placeholder="Ej: 102" autocomplete="off" spellcheck="false">
+        <input type="text" class="code-input" id="codigoTransporteInput" autocomplete="off" spellcheck="false">
         <button class="btn btn-cargar" id="btnCargar" onclick="filtrarPorCodigo()"><i class="fa-solid fa-magnifying-glass"></i> Cargar datos</button>
       </div>
     </div>
     <div class="inactividad-bar hidden" id="inactividadBar">
       <i class="fa-solid fa-clock"></i>
       <span>Sesión activa — </span>
-      <span class="inact-time" id="inactTime">60:00</span>
+      <span class="inact-time" id="inactTime">120:00</span>
     </div>
     <div class="section-title"><i class="fa-solid fa-list-check" style="color:var(--accent);"></i> Clientes asignados <span class="count" id="itemCount">0</span></div>
     <div class="table-wrap" id="tableWrap">
       <div class="table-scroll">
         <table id="tablaItems">
+          <!-- ★ PATCH H1 — 3 columnas: sector y horario ahora van dentro de la celda Entrega -->
           <thead><tr>
             <th style="width:44px">#</th>
-            <th><i class="fa-solid fa-box"></i> Nombre</th>
-            <th><i class="fa-solid fa-satellite-dish"></i> GPS</th>
-            <th><i class="fa-solid fa-location-dot"></i> Sector</th>
-            <th><i class="fa-regular fa-clock"></i> Desde</th>
-            <th><i class="fa-regular fa-clock"></i> Hasta</th>
+            <th style="width:250px"><i class="fa-solid fa-box"></i> Nombre</th>
+            <th><i class="fa-solid fa-satellite-dish"></i> Entrega</th>
           </tr></thead>
           <tbody id="tbodyLineas"></tbody>
         </table>
@@ -207,7 +296,10 @@
       <div class="empty-state" id="emptyState"><i class="fa-solid fa-inbox"></i><p>Escribe un código de transporte<br>para ver los datos asignados.</p></div>
     </div>
     <div class="acciones">
-      <button class="btn btn-guardar" id="btnGuardar" onclick="ejecutarGuardado()"><i class="fa-solid fa-cloud-arrow-up"></i> Guardar</button>
+      <!-- ★ PATCH J1 — botón con icono de guardar + frase FIN DE RUTA -->
+      <button class="btn btn-guardar" id="btnGuardar" onclick="ejecutarGuardado()"><i class="fa-solid fa-floppy-disk"></i> FIN DE RUTA</button>
+      <!-- ★ PATCH E2 — enlace a mapa completo (mapa.html externo, pestaña nueva) -->
+      <a class="btn btn-mapa disabled" id="btnMapa" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-map-location-dot"></i> Ver mapa completo</a>
     </div>
     <div id="mensaje"></div>
   </div>
@@ -220,31 +312,268 @@
     </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <div class="expired-container hidden" id="tamperedScreen">
+    <div class="expired-card">
+      <div class="expired-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <h2>Diseño no autorizado</h2>
+      <p>Este formulario ha sido modificado y no puede continuar.<br>Comunícate con el administrador del sistema.</p>
+    </div>
+  </div>
+
   <script>
     var FIREBASE_DB_URL_CONFIG = "https://datos-formulario-f3cde-default-rtdb.firebaseio.com/formConfig.json";
     var FIREBASE_DB_URL_BASE_USADOS = "https://datos-formulario-f3cde-default-rtdb.firebaseio.com/codigosUsados";
+    var FIREBASE_DB_URL_ROOT = "https://datos-formulario-f3cde-default-rtdb.firebaseio.com";
 
     var allItemsConfig = [];
     var codigoTransporteActual = '';
-    var itemsOriginalesCargados = [];
     var botonGPSPendiente = null;
+    var botonConfirmPendiente = null;
     var fechaInicioSesion = null;
     var timerInactividad = null;
+    var guardadoPendiente = false;
 
-    /* 120 min Firebase liberación */
-    var TIEMPO_LIBERAR_CODIGO_MS = 120 * 60 * 1000;
-    /* 60 min inactividad → resetear */
-    var INACTIVIDAD_RESET_MS = 60 * 60 * 1000;
-    /* 120 min inactividad → bloquear */
-    var INACTIVIDAD_BLOQUEO_MS = 120 * 60 * 1000;
+    /* 240 min desde la ÚLTIMA ACTIVIDAD (guardado/captura) → liberar código en Firebase */
+    var TIEMPO_LIBERAR_CODIGO_MS = 240 * 60 * 1000;
+    /* 120 min desde la última captura GPS → resetear sesión local */
+    var INACTIVIDAD_RESET_MS = 120 * 60 * 1000;
+    /* 240 min desde la última captura GPS → bloquear sesión local */
+    var INACTIVIDAD_BLOQUEO_MS = 240 * 60 * 1000;
     var LS_KEY = 'transporte_sesion';
+    var LS_DEVICE_KEY = 'transporte_dispositivo_id';
+
+    var codigosValidosMap = {};
+
+    /* ★ PATCH D1 — FIREBASE ANONYMOUS AUTH (capa opcional de seguridad) */
+    var FIREBASE_APP_CONFIG = null;
+    var fbAuthToken = null;
+
+    function conAuth(url) {
+      if (FIREBASE_APP_CONFIG && fbAuthToken) {
+        return url + (url.indexOf('?') === -1 ? '?' : '&') + 'auth=' + fbAuthToken;
+      }
+      return url;
+    }
+    function cargarScriptAsync(src) {
+      return new Promise(function(resolver, rechazar) {
+        var s = document.createElement('script');
+        s.src = src;
+        s.onload = resolver;
+        s.onerror = function() { rechazar(new Error('No se pudo cargar ' + src)); };
+        document.head.appendChild(s);
+      });
+    }
+    function iniciarFirebaseAuth() {
+      if (!FIREBASE_APP_CONFIG) return Promise.resolve(false);
+      var base = 'https://www.gstatic.com/firebasejs/10.12.0/';
+      return Promise.race([
+        cargarScriptAsync(base + 'firebase-app-compat.js')
+          .then(function() { return cargarScriptAsync(base + 'firebase-auth-compat.js'); })
+          .then(function() {
+            if (!firebase.apps.length) firebase.initializeApp(FIREBASE_APP_CONFIG);
+            firebase.auth().onIdTokenChanged(function(user) {
+              if (user) { user.getIdToken().then(function(t) { fbAuthToken = t; }).catch(function(){}); }
+              else { fbAuthToken = null; }
+            });
+            return firebase.auth().signInAnonymously().then(function() { return true; }).catch(function(e) {
+              console.warn('Auth anónima no disponible, continuando sin token:', e && e.message);
+              return false;
+            });
+          }),
+        new Promise(function(resolver) { setTimeout(function() { resolver(false); }, 12000); })
+      ]).catch(function() { return false; });
+    }
+    setInterval(function() {
+      if (!FIREBASE_APP_CONFIG) return;
+      try {
+        if (window.firebase && firebase.apps && firebase.apps.length) {
+          var u = firebase.auth().currentUser;
+          if (u) u.getIdToken(true).then(function(t) { fbAuthToken = t; }).catch(function(){});
+        }
+      } catch(e) {}
+    }, 45 * 60 * 1000);
+
+    /* ★ PATCH A2 — Escapado HTML para neutralizar inyección XSS */
+    function esc(s) {
+      return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function(c) {
+        return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+      });
+    }
 
     /* ============================================================
-       LOCALSTORAGE — Sesión con timestamp de actividad
+       ★ PATCH O1 — JORNADAS POR DÍA EN FIREBASE
+       codigosUsados/{YYYY-MM-DD}/{codigo}. La ruta pertenece al día
+       en que INICIÓ la sesión (aunque cruce la medianoche).
+       Facilita mantenimiento: borrar una jornada = borrar su nodo.
+       ============================================================ */
+    function claveDiaLocal(offsetDias) {
+      var d = new Date();
+      if (offsetDias) d.setDate(d.getDate() + offsetDias);
+      function p(n) { return String(n).padStart(2, '0'); }
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    }
+    var diaSesionActual = null; /* ★ PATCH O1 — día en que inició la sesión */
+    function urlCodigoDia(codigo) {
+      var dia = diaSesionActual || claveDiaLocal();
+      return FIREBASE_DB_URL_BASE_USADOS + '/' + dia + '/' + encodeURIComponent(codigo);
+    }
+
+    /* ============================================================
+       ★ PATCH K1 — RUTAS IDENTIFICADAS POR FECHA DE DESPACHO
+       El campo "fecha" del formConfig (generado por la macro de Excel)
+       es único por despacho. La ruta = ítems con fechas PENDIENTES.
+       FIN DE RUTA archiva esas fechas; al recargar el código solo
+       aparecen los despachos nuevos (mismo cliente con fecha distinta
+       = nueva entrega).
+       ============================================================ */
+    function normalizarFechaDespacho(s) {
+      if (s === null || s === undefined) return '';
+      var t = String(s).trim().replace(/\s+/g, ' ');
+      if (!t) return '';
+      var m = t.match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+      if (!m) return t.toLowerCase();
+      var dia, mes, anio;
+      if (m[1].length === 4) { anio = parseInt(m[1], 10); mes = parseInt(m[2], 10); dia = parseInt(m[3], 10); }
+      else { dia = parseInt(m[1], 10); mes = parseInt(m[2], 10); anio = parseInt(m[3], 10); if (anio < 100) anio += 2000; }
+      function p(n) { return String(n).padStart(2, '0'); }
+      var hora = (m[4] !== undefined) ? (p(parseInt(m[4], 10)) + ':' + m[5] + ':' + (m[6] || '00')) : '00:00:00';
+      return anio + '-' + p(mes) + '-' + p(dia) + ' ' + hora;
+    }
+    function claveFechaItem(item) {
+      var f = normalizarFechaDespacho(item && (item.fecha || item.Fecha));
+      return f || 'sin-fecha';
+    }
+    function fechasDeItems(items) {
+      var vistos = {};
+      items.forEach(function(it) { vistos[claveFechaItem(it)] = true; });
+      return Object.keys(vistos).sort();
+    }
+    function calcularRutaId(items) {
+      var s = fechasDeItems(items).join('|');
+      var h = 5381;
+      for (var i = 0; i < s.length; i++) { h = ((h << 5) + h + s.charCodeAt(i)) & 0xFFFFFFFF; }
+      return (h >>> 0).toString(36) + '-' + items.length;
+    }
+    var rutaIdActualSesion = null; /* ★ PATCH K1 */
+    var fechasRutaSesion = []; /* ★ PATCH K1 — fechas de despacho de la sesión actual */
+
+    /* ============================================================
+       SEGURO DE DISEÑO — si el logo/camión se altera, la app queda inutilizable
+       ============================================================ */
+    var disenoIntacto = null;
+    function normAtt(s) { return (s || '').replace(/\s+/g,''); }
+    function verificarDiseno() {
+      try {
+        var svg = document.querySelector('.et-truck');
+        if (!svg) return false;
+        if ((svg.getAttribute('viewBox') || '') !== '-8 0 116 56') return false;
+
+        var paths = svg.querySelectorAll('path');
+        if (paths.length !== 3) return false;
+
+        var body = svg.querySelector('.camion-body');
+        if (!body || body.getAttribute('fill') !== '#e8913a') return false;
+        var anim = body.querySelector('animate');
+        if (!anim) return false;
+        var vals = normAtt(anim.getAttribute('values')).split(';');
+        if (vals.length !== 3 || vals[0] !== vals[2]) return false;
+
+        var d = vals[0];
+        if (d.indexOf('M224L744') === -1) return false;
+        var dientes = ['L1240','L133','L1026','L-219','L612','L-15Z'];
+        for (var i = 0; i < dientes.length; i++) { if (d.indexOf(dientes[i]) === -1) return false; }
+        var valles = d.match(/L22\d+/g) || [];
+        if (valles.length !== 6) return false;
+        var d2 = vals[1];
+        if (d2.indexOf('L-619') === -1 || d2.indexOf('L-25Z') === -1) return false;
+
+        if (normAtt(paths[1].getAttribute('d')) !== 'M7812L9412L10227L10244L7844Z' || paths[1].getAttribute('fill') !== '#e8913a') return false;
+        if (normAtt(paths[2].getAttribute('d')) !== 'M8318L9018L9527L8327Z' || paths[2].getAttribute('fill') !== '#0f1117') return false;
+
+        var txt = svg.querySelector('text');
+        if (!txt || txt.textContent !== 'ET' || txt.getAttribute('fill') !== '#0f1117' || txt.getAttribute('font-size') !== '20') return false;
+
+        var circles = svg.querySelectorAll('circle');
+        if (circles.length !== 4) return false;
+        var r8 = 0, r35 = 0;
+        for (var c = 0; c < circles.length; c++) {
+          var r = circles[c].getAttribute('r'), f = circles[c].getAttribute('fill');
+          if (r === '8') { if (f !== '#ffffff') return false; r8++; }
+          else if (r === '3.5') { if (f !== '#0f1117') return false; r35++; }
+          else return false;
+        }
+        if (r8 !== 2 || r35 !== 2) return false;
+
+        var g = svg.querySelector('g.speed-lines');
+        if (!g || g.getAttribute('stroke') !== '#ffffff') return false;
+        var lines = g.querySelectorAll('line');
+        if (lines.length !== 3) return false;
+        var coords = [[28,10,68,10],[30,36,66,36],[82,33,98,33]];
+        for (var l = 0; l < lines.length; l++) {
+          var ln = lines[l];
+          if (ln.getAttribute('class') !== 'sl-' + (l + 1)) return false;
+          if (parseInt(ln.getAttribute('x1'),10) !== coords[l][0] || parseInt(ln.getAttribute('y1'),10) !== coords[l][1] ||
+              parseInt(ln.getAttribute('x2'),10) !== coords[l][2] || parseInt(ln.getAttribute('y2'),10) !== coords[l][3]) return false;
+        }
+
+        var badge = document.querySelector('.page-header .badge');
+        if (!badge || normAtt(badge.textContent) !== 'ETGestióndeentregas') return false;
+
+        var ico = document.querySelector('link[rel="icon"]');
+        if (!ico) return false;
+        var ih = ico.getAttribute('href') || '';
+        if (ih.indexOf('%23e8913a') === -1 || ih.indexOf('%230f1117') === -1 || ih.indexOf('ET') === -1) return false;
+
+        return true;
+      } catch (e) { return false; }
+    }
+    function activarBloqueoDiseno() {
+      if (disenoIntacto === false) return;
+      disenoIntacto = false;
+      codigoTransporteActual = '';
+      fechaInicioSesion = null;
+      detenerTimerInactividad();
+      try { localStorage.removeItem(LS_KEY); } catch(e) {}
+      document.getElementById('mainContent').classList.add('hidden');
+      document.getElementById('expiredScreen').classList.add('hidden');
+      document.getElementById('tamperedScreen').classList.remove('hidden');
+    }
+    setInterval(function() { if (disenoIntacto === true && !verificarDiseno()) activarBloqueoDiseno(); }, 5000);
+    window.addEventListener('focus', function() { if (disenoIntacto === true && !verificarDiseno()) activarBloqueoDiseno(); });
+
+    /* ============================================================
+       IDENTIFICADOR ÚNICO DE DISPOSITIVO (bloqueo multi-dispositivo)
+       ============================================================ */
+    function obtenerIdDispositivo() {
+      try {
+        var id = localStorage.getItem(LS_DEVICE_KEY);
+        if (!id) {
+          id = 'dev-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 10);
+          localStorage.setItem(LS_DEVICE_KEY, id);
+        }
+        return id;
+      } catch(e) {
+        return 'dev-temp-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 10);
+      }
+    }
+
+    /* ============================================================
+       LOCALSTORAGE — Sesión con timestamp de última CAPTURA GPS
        ============================================================ */
     function guardarSesionEnDispositivo(codigo) {
-      try { localStorage.setItem(LS_KEY, JSON.stringify({ codigo: codigo, ultimaActividad: Date.now() })); } catch(e) {}
+      try {
+        var previa = null;
+        var raw = localStorage.getItem(LS_KEY);
+        if (raw) {
+          var d = JSON.parse(raw);
+          if (d.codigo === codigo && d.ultimaActividad && (Date.now() - d.ultimaActividad) < INACTIVIDAD_RESET_MS) {
+            previa = d.ultimaActividad;
+          }
+        }
+        localStorage.setItem(LS_KEY, JSON.stringify({ codigo: codigo, ultimaActividad: previa || Date.now() }));
+      } catch(e) {
+        try { localStorage.setItem(LS_KEY, JSON.stringify({ codigo: codigo, ultimaActividad: Date.now() })); } catch(e2) {}
+      }
     }
     function actualizarActividadEnDispositivo() {
       if (!codigoTransporteActual) return;
@@ -275,7 +604,7 @@
     function iniciarTimerInactividad() {
       detenerTimerInactividad();
       timerInactividad = setInterval(verificarInactividad, 15000);
-      verificarInactividad(); // Verificar inmediato
+      verificarInactividad();
     }
     function detenerTimerInactividad() {
       if (timerInactividad) { clearInterval(timerInactividad); timerInactividad = null; }
@@ -289,16 +618,9 @@
       var barra = document.getElementById('inactividadBar');
       var tiempoEl = document.getElementById('inactTime');
 
-      if (inactividad >= INACTIVIDAD_BLOQUEO_MS) {
-        forzarResetPorInactividad('bloqueo');
-        return;
-      }
-      if (inactividad >= INACTIVIDAD_RESET_MS) {
-        forzarResetPorInactividad('reset');
-        return;
-      }
+      if (inactividad >= INACTIVIDAD_BLOQUEO_MS) { forzarResetPorInactividad('bloqueo'); return; }
+      if (inactividad >= INACTIVIDAD_RESET_MS) { forzarResetPorInactividad('reset'); return; }
 
-      /* Calcular tiempo restante hasta reset (60 min) */
       var restanteReset = INACTIVIDAD_RESET_MS - inactividad;
       var minR = Math.floor(restanteReset / 60000);
       var segR = Math.floor((restanteReset % 60000) / 1000);
@@ -309,7 +631,7 @@
         barra.classList.add('danger');
         barra.querySelector('i').className = 'fa-solid fa-triangle-exclamation';
         barra.querySelector('span').textContent = 'Inactividad — se cerrará en ';
-      } else if (restanteReset < 20 * 60 * 1000) {
+      } else if (restanteReset < 30 * 60 * 1000) {
         barra.classList.add('warn');
         barra.querySelector('i').className = 'fa-solid fa-clock';
         barra.querySelector('span').textContent = 'Inactividad — se cerrará en ';
@@ -323,63 +645,111 @@
     function forzarResetPorInactividad(tipo) {
       detenerTimerInactividad();
       var codigoPrevio = codigoTransporteActual;
+      try { localStorage.removeItem(LS_KEY); } catch(e) {}
       resetearFormulario();
       if (tipo === 'bloqueo') {
-        msg('Sesión expirada por inactividad (2 horas sin actividad). El código "' + codigoPrevio + '" se ha bloqueado.', 'err');
+        msg('Sesión expirada por inactividad (4 horas sin capturas). El código "' + codigoPrevio + '" se ha bloqueado.', 'err');
       } else {
-        msg('Sesión cerrada por inactividad (60 min). Vuelve a ingresar el código "' + codigoPrevio + '".', 'warn');
+        msg('Sesión cerrada por inactividad (120 min sin capturas). Vuelve a ingresar el código "' + codigoPrevio + '".', 'warn');
       }
     }
 
-    /* Detectar actividad del usuario */
-    document.addEventListener('input', function(e) {
-      if (!codigoTransporteActual) return;
-      if (e.target.closest('#codigoTransporteInput')) return;
-      actualizarActividadEnDispositivo();
-    });
-    document.addEventListener('click', function(e) {
-      if (!codigoTransporteActual) return;
-      if (e.target.closest('#btnCargar') || e.target.closest('#btnGuardar')) return;
-      actualizarActividadEnDispositivo();
-    });
-
     /* ============================================================
-       GUARDADO AUTOMÁTICO AL CERRAR PÁGINA
+       GUARDADO AUTOMÁTICO AL CERRAR PÁGINA + AUTO-SYNC AL RECONECTAR
        ============================================================ */
     window.addEventListener('beforeunload', function() {
-      if (codigoTransporteActual) guardarEstadoActualEnFirebase();
+      if (codigoTransporteActual && disenoIntacto === true) guardarEstadoActualEnFirebase();
     });
+    window.addEventListener('online', function() {
+      if (guardadoPendiente && codigoTransporteActual && disenoIntacto === true) guardarEstadoActualEnFirebase();
+    });
+    setInterval(function() {
+      if (guardadoPendiente && navigator.onLine && codigoTransporteActual && disenoIntacto === true) guardarEstadoActualEnFirebase();
+    }, 30000);
+
     function despuesDeCapturarGPS() {
       actualizarActividadEnDispositivo();
       guardarEstadoActualEnFirebase();
     }
     function guardarEstadoActualEnFirebase() {
-      if (!codigoTransporteActual) return;
-      var datos = recopilarDatosFormulario();
+      if (!codigoTransporteActual || disenoIntacto !== true) return;
+      var datos;
+      try { datos = recopilarDatosFormulario(); } catch(e) { console.error('Error recopilando datos:', e); return; }
+      /* ★ PATCH O1 — guarda en codigosUsados/{día de la sesión}/{código};
+         PATCH preserva el historial rutas[] */
+      var cuerpo = JSON.stringify({ estado: 'en_proceso', dia: diaSesionActual || claveDiaLocal(), rutaId: rutaIdActualSesion || null, fechasRuta: fechasRutaSesion || [], fechaInicio: fechaInicioSesion || new Date().toISOString(), ultimaActividad: new Date().toISOString(), dispositivoId: obtenerIdDispositivo(), datosFormulario: datos });
       try {
-        fetch(FIREBASE_DB_URL_BASE_USADOS + '/' + codigoTransporteActual + '.json', {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ estado: 'en_proceso', fechaInicio: fechaInicioSesion || new Date().toISOString(), datosFormulario: datos }),
-          keepalive: true
+        fetch(conAuth(urlCodigoDia(codigoTransporteActual) + '.json'), {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: cuerpo,
+          keepalive: cuerpo.length < 60000
+        }).then(function(r){
+          if (!r.ok) { console.error('Firebase respondió HTTP', r.status); guardadoPendiente = true; status('Sin conexión — guardado pendiente', 'warn'); }
+          else { guardadoPendiente = false; status('', 'ok'); }
+        }).catch(function(e){
+          console.error('Error de red guardando:', e);
+          guardadoPendiente = true;
+          status('Sin conexión — guardado pendiente', 'warn');
         });
-      } catch(e) {}
+      } catch(e) { console.error('Error enviando a Firebase:', e); guardadoPendiente = true; }
     }
+
     function recopilarDatosFormulario() {
       var filas = document.querySelectorAll('#tbodyLineas tr');
       var entregas = [];
+      var tieneCalcDist = (typeof distanciaMetros === 'function' && typeof num === 'function' && typeof formatearDistancia === 'function');
       filas.forEach(function(fila) {
         var nombre = fila.querySelector('.item-name-text') ? fila.querySelector('.item-name-text').textContent.trim() : '';
-        var sector = fila.querySelector('.sector') ? fila.querySelector('.sector').value : '';
-        var inicio = fila.querySelector('.inicio') ? fila.querySelector('.inicio').value : '';
-        var fin = fila.querySelector('.fin') ? fila.querySelector('.fin').value : '';
+        var sectorEl = fila.querySelector('.info-sector');
+        var sector = sectorEl ? (sectorEl.dataset.sector || '') : '';
+        var horEl = fila.querySelector('.info-horario');
+        var inicio = horEl ? (horEl.dataset.inicio || '') : '';
+        var fin = horEl ? (horEl.dataset.fin || '') : '';
         var btnGPS = fila.querySelector('.btn-gps');
-        var gpsLat = btnGPS && btnGPS.dataset.lat ? btnGPS.dataset.lat : null;
-        var gpsLng = btnGPS && btnGPS.dataset.lng ? btnGPS.dataset.lng : null;
-        var gpsAccuracy = btnGPS && btnGPS.dataset.accuracy ? btnGPS.dataset.accuracy : null;
-        var reg = { item: nombre, sector: sector, inicio: inicio, fin: fin };
-        if (gpsLat !== null && gpsLng !== null) {
-          reg.gps = { lat: parseFloat(gpsLat), lng: parseFloat(gpsLng), accuracy: gpsAccuracy ? parseFloat(gpsAccuracy) : null, mapsUrl: 'https://www.google.com/maps?q=' + gpsLat + ',' + gpsLng };
+        /* ★ PATCH K1 — fecha de despacho del ítem (identificador de ruta) */
+        var reg = { item: nombre, codclnt: fila.dataset.codclnt || '', sector: sector, inicio: inicio, fin: fin, fechaDespacho: fila.dataset.fechaDespacho || '' };
+
+        if (btnGPS && btnGPS.dataset.origLat && btnGPS.dataset.origLng) {
+          var oLat = num(btnGPS.dataset.origLat), oLng = num(btnGPS.dataset.origLng), oFecha = btnGPS.dataset.origFecha || null;
+          reg.gpsOriginal = {
+            lat: oLat, lng: oLng, origen: 'firebase',
+            fechaCaptura: oFecha,
+            fechaCapturaTxt: oFecha ? formatearFechaHora(oFecha) : null,
+            mapsUrl: 'https://www.google.com/maps?q=' + oLat + ',' + oLng
+          };
         }
+        if (btnGPS && btnGPS.dataset.lat && btnGPS.dataset.lng) {
+          var nLat = num(btnGPS.dataset.lat), nLng = num(btnGPS.dataset.lng);
+          var nFecha = btnGPS.dataset.fecha || new Date().toISOString();
+          var nAcc = btnGPS.dataset.accuracy ? num(btnGPS.dataset.accuracy) : null;
+          var distOrig = null;
+          if (tieneCalcDist && btnGPS.dataset.origLat && btnGPS.dataset.origLng) {
+            try { distOrig = Math.round(distanciaMetros(num(btnGPS.dataset.origLat), num(btnGPS.dataset.origLng), nLat, nLng)); } catch(e) { distOrig = null; }
+          }
+          reg.gps = {
+            lat: nLat, lng: nLng, accuracy: nAcc, origen: 'dispositivo',
+            distanciaOriginal: distOrig,
+            distanciaOriginalTxt: (distOrig !== null) ? formatearDistancia(distOrig) : null,
+            recapturado: btnGPS.dataset.recapturado ? true : false,
+            fechaCaptura: nFecha,
+            fechaCapturaTxt: formatearFechaHora(nFecha),
+            mapsUrl: 'https://www.google.com/maps?q=' + nLat + ',' + nLng
+          };
+        }
+        /* ★ PATCH G2 — permanencia seleccionada + comentario */
+        var btnPerm = fila.querySelector('.btn-perm');
+        if (btnPerm && btnPerm.dataset.permMin) {
+          var mins = num(btnPerm.dataset.permMin);
+          if (mins !== null && mins > 0) {
+            reg.permanencia = {
+              minutos: mins,
+              duracionTxt: formatearMinutos(mins),
+              registradoEn: btnPerm.dataset.permFecha || new Date().toISOString()
+            };
+          }
+        }
+        var taCom = fila.querySelector('.input-com'); /* ★ PATCH H1 — campo inline */
+        reg.comentario = taCom ? String(taCom.value || '').trim() : '';
         entregas.push(reg);
       });
       return entregas;
@@ -391,7 +761,7 @@
       var el = document.getElementById('estadoServidor');
       var icons = { load: 'fa-circle-notch', ok: 'fa-circle-check', warn: 'fa-triangle-exclamation', err: 'fa-circle-xmark' };
       el.className = 'status ' + type;
-      el.innerHTML = '<i class="fa-solid ' + (icons[type] || icons.load) + '"></i><span>' + text + '</span>';
+      el.innerHTML = '<i class="fa-solid ' + (icons[type] || icons.load) + '"></i><span>' + esc(text || '') + '</span>';
     }
     function mostrarToast(texto) {
       var t = document.getElementById('toastGuardado');
@@ -399,40 +769,33 @@
       t.classList.add('visible');
       setTimeout(function() { t.classList.remove('visible'); }, 3000);
     }
-    function generarOpcionesHorario() {
-      var o = '<option value="">--:--</option>';
-      for (var h = 4; h <= 15; h++) for (var m = 0; m < 60; m += 30) { if (h === 15 && m > 0) continue; o += '<option value="'+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+'">'+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+'</option>'; }
-      return o;
-    }
-    var opcionesDeHorario = generarOpcionesHorario();
     function limpiarHora(s) { if (!s) return ''; var l = String(s).replace(/[hH]/g,':'); if (/^\d{1,2}:$/.test(l)) l += '00'; return l; }
 
     /* ========== ELIMINAR GPS ========== */
     function eliminarGPS(botonEliminar) {
-      var fila = botonEliminar.closest('tr');
+      if (disenoIntacto !== true) return;
       var celda = botonEliminar.closest('.gps-cell');
       var btnGPS = celda.querySelector('.btn-gps');
-      var coordsEl = celda.querySelector('.gps-coords');
-      var linkEl = celda.querySelector('.gps-link');
+      if (btnGPS.classList.contains('capturando')) return;
       var errorEl = celda.querySelector('.gps-error-detail');
       var btnRow = celda.querySelector('.gps-btn-row');
-
-      /* Limpiar todo */
       btnGPS.classList.remove('capturado', 'error-gps', 'capturando');
-      btnGPS.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> GPS';
+      btnGPS.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> Entrega Pendiente';
       delete btnGPS.dataset.lat;
       delete btnGPS.dataset.lng;
       delete btnGPS.dataset.accuracy;
-      coordsEl.classList.remove('visible', 'capturado');
-      coordsEl.innerHTML = '';
-      linkEl.classList.remove('visible');
+      delete btnGPS.dataset.origen;
+      delete btnGPS.dataset.fecha;
+      delete btnGPS.dataset.recapturado;
+      var miniNueva = celda.querySelector('.gps-mini-nueva');
+      if (miniNueva) { miniNueva.classList.remove('on'); miniNueva.innerHTML = ''; miniNueva.removeAttribute('href'); }
       errorEl.classList.remove('visible');
       errorEl.innerHTML = '';
       btnRow.classList.remove('tiene-gps');
+      var elDist = celda.querySelector('.gps-distancia');
+      if (elDist) { elDist.classList.remove('visible', 'dist-ok', 'dist-warn', 'dist-bad'); elDist.textContent = ''; }
 
-      /* Guardar estado sin GPS */
       guardarEstadoActualEnFirebase();
-      actualizarActividadEnDispositivo();
     }
 
     /* ========== GPS ========== */
@@ -444,8 +807,20 @@
       return ['Activa <strong>ubicación</strong> en configuración','Vuelve y presiona <strong>Reintentar</strong>'];
     }
     function abrirModalGPS(b) { botonGPSPendiente = b; document.getElementById('gpsStepsList').innerHTML = obtenerPasosActivarGPS().map(function(s){return '<li>'+s+'</li>';}).join(''); document.getElementById('gpsModal').classList.add('visible'); }
-    function cerrarModalGPS() { document.getElementById('gpsModal').classList.remove('visible'); if (botonGPSPendiente) { botonGPSPendiente.classList.remove('capturando'); botonGPSPendiente.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> GPS'; } botonGPSPendiente = null; }
-    function reintentarDesdeModal() { document.getElementById('gpsModal').classList.remove('visible'); var b = botonGPSPendiente; botonGPSPendiente = null; if (b) setTimeout(function(){capturarGPS(b);}, 500); }
+    function cerrarModalGPS() {
+      document.getElementById('gpsModal').classList.remove('visible');
+      if (botonGPSPendiente) {
+        botonGPSPendiente.classList.remove('capturando');
+        if (botonGPSPendiente.dataset.origen === 'dispositivo' && botonGPSPendiente.dataset.lat) {
+          botonGPSPendiente.classList.add('capturado');
+          botonGPSPendiente.innerHTML = '<i class="fa-solid fa-check"></i> Entregado';
+        } else {
+          botonGPSPendiente.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> Entrega Pendiente';
+        }
+      }
+      botonGPSPendiente = null;
+    }
+    function reintentarDesdeModal() { document.getElementById('gpsModal').classList.remove('visible'); var b = botonGPSPendiente; botonGPSPendiente = null; if (b) setTimeout(function(){ ejecutarCapturaGPS(b); }, 500); }
     function esGPSApagado(error) {
       if (error.code !== error.PERMISSION_DENIED) return false;
       var m = (error.message || '').toLowerCase();
@@ -454,27 +829,54 @@
       if (m.length === 0 || m === 'permission denied') return detectarPlataforma() === 'android';
       return false;
     }
+
     function capturarGPS(boton) {
+      if (disenoIntacto !== true) return;
       if (boton.classList.contains('capturando')) return;
+      if (boton.dataset.origen === 'dispositivo' && boton.dataset.lat) {
+        botonConfirmPendiente = boton;
+        document.getElementById('confirmModal').classList.add('visible');
+        return;
+      }
+      ejecutarCapturaGPS(boton);
+    }
+    function cerrarConfirmRecaptura() {
+      document.getElementById('confirmModal').classList.remove('visible');
+      botonConfirmPendiente = null;
+    }
+    function confirmarRecaptura() {
+      var b = botonConfirmPendiente;
+      botonConfirmPendiente = null;
+      document.getElementById('confirmModal').classList.remove('visible');
+      if (b) setTimeout(function(){ ejecutarCapturaGPS(b); }, 250);
+    }
+
+    function ejecutarCapturaGPS(boton) {
+      if (disenoIntacto !== true) return;
       var celda = boton.closest('.gps-cell');
-      var coordsEl = celda.querySelector('.gps-coords'), linkEl = celda.querySelector('.gps-link'), errorEl = celda.querySelector('.gps-error-detail');
-      boton.classList.remove('capturado','error-gps'); boton.classList.add('capturando');
+      var errorEl = celda.querySelector('.gps-error-detail');
+      var teniaEntrega = (boton.dataset.origen === 'dispositivo' && !!boton.dataset.lat);
+      boton.classList.remove('capturado','error-gps');
+      boton.classList.add('capturando');
       boton.innerHTML = '<i class="fa-solid fa-circle-notch"></i> Ubicando...';
-      coordsEl.classList.remove('visible','capturado'); coordsEl.innerHTML = '';
-      linkEl.classList.remove('visible'); errorEl.classList.remove('visible'); errorEl.innerHTML = '';
+      errorEl.classList.remove('visible'); errorEl.innerHTML = '';
       if (!navigator.geolocation) { boton.classList.remove('capturando'); boton.classList.add('error-gps'); boton.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> No soportado'; errorEl.innerHTML = '<div class="gps-error-title no-signal"><i class="fa-solid fa-circle-info"></i> Navegador incompatible</div>'; errorEl.classList.add('visible'); return; }
       if (!window.isSecureContext) { boton.classList.remove('capturando'); boton.classList.add('error-gps'); boton.innerHTML = '<i class="fa-solid fa-lock"></i> Sin HTTPS'; errorEl.innerHTML = '<div class="gps-error-title perm-denied"><i class="fa-solid fa-lock"></i> Sin HTTPS</div>'; errorEl.classList.add('visible'); return; }
       navigator.geolocation.getCurrentPosition(
         function(pos) {
+          if (teniaEntrega) {
+            boton.dataset.recapturado = '1';
+          }
           boton.classList.remove('capturando'); boton.classList.add('capturado');
-          boton.innerHTML = '<i class="fa-solid fa-check"></i> GPS OK';
-          coordsEl.innerHTML = '<span class="lat-label">Lat:</span>'+pos.coords.latitude.toFixed(6)+' <span class="lng-label">Lng:</span>'+pos.coords.longitude.toFixed(6)+'<br><span style="opacity:0.55">~'+Math.round(pos.coords.accuracy)+'m</span>';
-          coordsEl.classList.add('visible','capturado');
-          linkEl.href = 'https://www.google.com/maps?q='+pos.coords.latitude+','+pos.coords.longitude; linkEl.classList.add('visible');
+          boton.innerHTML = '<i class="fa-solid fa-check"></i> Entregado';
+          var fechaCapturaISO = new Date().toISOString();
           boton.dataset.lat = pos.coords.latitude; boton.dataset.lng = pos.coords.longitude; boton.dataset.accuracy = pos.coords.accuracy;
-          /* Mostrar botón eliminar */
+          boton.dataset.origen = 'dispositivo';
+          boton.dataset.fecha = fechaCapturaISO;
+          pintarMini(celda.querySelector('.gps-mini-nueva'), pos.coords.latitude, pos.coords.longitude, fechaCapturaISO, teniaEntrega ? 'nueva' : 'entrega', pos.coords.accuracy, true);
           celda.querySelector('.gps-btn-row').classList.add('tiene-gps');
           despuesDeCapturarGPS();
+          if (typeof mostrarDistanciaCaptura === 'function') mostrarDistanciaCaptura(celda, boton);
         },
         function(error) {
           boton.classList.remove('capturando');
@@ -487,38 +889,280 @@
             default: t='<i class="fa-solid fa-xmark"></i> Error'; d='<div class="gps-error-title perm-denied"><i class="fa-solid fa-xmark"></i> Error</div>';
           }
           boton.innerHTML=t; errorEl.innerHTML=d; errorEl.classList.add('visible');
-          delete boton.dataset.lat; delete boton.dataset.lng; delete boton.dataset.accuracy;
+          if (teniaEntrega) {
+            boton.classList.remove('error-gps');
+            boton.classList.add('capturado');
+            boton.innerHTML = '<i class="fa-solid fa-check"></i> Entregado';
+          } else {
+            delete boton.dataset.lat; delete boton.dataset.lng; delete boton.dataset.accuracy; delete boton.dataset.origen; delete boton.dataset.fecha;
+            var miniNueva = celda.querySelector('.gps-mini-nueva');
+            if (miniNueva) { miniNueva.classList.remove('on'); miniNueva.innerHTML=''; miniNueva.removeAttribute('href'); }
+            celda.querySelector('.gps-btn-row').classList.remove('tiene-gps');
+            var elDist = celda.querySelector('.gps-distancia');
+            if (elDist) { elDist.classList.remove('visible', 'dist-ok', 'dist-warn', 'dist-bad'); elDist.textContent = ''; }
+          }
         },
         { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
       );
     }
-    function restaurarGPSenFila(fila, gpsData) {
-      if (!gpsData || gpsData.lat === null || gpsData.lng === null) return;
+
+    /* ========== UTILIDADES GPS ========== */
+    function num(v) {
+      if (v === null || v === undefined || v === '') return null;
+      var n = (typeof v === 'number') ? v : parseFloat(String(v).trim().replace(',', '.'));
+      return (isFinite(n)) ? n : null;
+    }
+    function distanciaMetros(lat1, lng1, lat2, lng2) {
+      var R = 6371000;
+      var rad = Math.PI / 180;
+      var dLat = (lat2 - lat1) * rad;
+      var dLng = (lng2 - lng1) * rad;
+      var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * rad) * Math.cos(lat2 * rad) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+    function formatearDistancia(m) {
+      if (m < 1000) return Math.round(m) + ' m';
+      return (m / 1000).toFixed(2) + ' km';
+    }
+    function mostrarDistanciaCaptura(celda, btn) {
+      if (!celda || !btn) return;
+      if (!btn.dataset.origLat || !btn.dataset.origLng || !btn.dataset.lat || !btn.dataset.lng) return;
+      var dist = distanciaMetros(num(btn.dataset.origLat), num(btn.dataset.origLng), num(btn.dataset.lat), num(btn.dataset.lng));
+      var elDist = celda.querySelector('.gps-distancia');
+      if (!elDist) return;
+      elDist.textContent = 'Distancia del original: ~' + formatearDistancia(dist);
+      elDist.classList.remove('dist-ok', 'dist-warn', 'dist-bad');
+      if (dist < 100) elDist.classList.add('dist-ok');
+      else if (dist < 500) elDist.classList.add('dist-warn');
+      else elDist.classList.add('dist-bad');
+      elDist.classList.add('visible');
+    }
+    function formatearFechaHora(iso) {
+      var d = new Date(iso);
+      if (!iso || isNaN(d.getTime())) return '';
+      function p(n){ return String(n).padStart(2,'0'); }
+      return p(d.getDate()) + '/' + p(d.getMonth()+1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+    }
+    function formatearFechaCorta(iso) {
+      var d = new Date(iso);
+      if (!iso || isNaN(d.getTime())) return '';
+      function p(n){ return String(n).padStart(2,'0'); }
+      return p(d.getDate()) + '/' + p(d.getMonth()+1) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+    function pintarMini(miniEl, lat, lng, fechaISO, etiqueta, accuracy, conFecha) {
+      if (!miniEl) return;
+      var latN = num(lat), lngN = num(lng);
+      if (latN === null || lngN === null) { miniEl.classList.remove('on'); miniEl.innerHTML=''; miniEl.removeAttribute('href'); miniEl.removeAttribute('title'); return; }
+      /* ★ PATCH M1 — sin coordenadas visibles: icono + precisión + fecha + tag */
+      var partes = [];
+      if (num(accuracy) !== null && num(accuracy) > 0) partes.push('~' + Math.round(num(accuracy)) + 'm');
+      if (conFecha !== false && fechaISO) partes.push(formatearFechaCorta(fechaISO));
+      var html = '<i class="fa-solid fa-location-dot"></i>' + (partes.length ? ' ' + partes.join(' · ') : '');
+      if (etiqueta) html += ' <span class="mini-tag">' + etiqueta + '</span>';
+      miniEl.innerHTML = html;
+      miniEl.href = 'https://www.google.com/maps?q=' + latN + ',' + lngN;
+      miniEl.title = 'Ver en Google Maps' + ((conFecha !== false && fechaISO) ? ' — ' + formatearFechaHora(fechaISO) : '') + ' · ' + latN.toFixed(5) + ', ' + lngN.toFixed(5);
+      miniEl.classList.add('on');
+    }
+    /* ★ PATCH I1 — mini original compacto: solo icono + tag (sigue siendo enlace a Google Maps) */
+    function pintarMiniIcono(miniEl, lat, lng, fechaISO, etiqueta) {
+      if (!miniEl) return;
+      var latN = num(lat), lngN = num(lng);
+      if (latN === null || lngN === null) { miniEl.classList.remove('on'); miniEl.innerHTML=''; miniEl.removeAttribute('href'); miniEl.removeAttribute('title'); return; }
+      miniEl.innerHTML = '<i class="fa-solid fa-location-dot"></i> <span class="mini-tag">' + etiqueta + '</span>';
+      miniEl.href = 'https://www.google.com/maps?q=' + latN + ',' + lngN;
+      miniEl.title = 'Ver punto asignado en Google Maps' + (fechaISO ? ' — ' + formatearFechaHora(fechaISO) : '');
+      miniEl.classList.add('on');
+    }
+    function extraerGPSDeItem(item) {
+      if (!item || typeof item !== 'object') return null;
+      var lat = num(item.Latitud);
+      var lng = num(item.Longitud);
+      if (lat === 0 && lng === 0) return null; /* ★ PATCH F1 — 0,0 = sin coordenadas */
+      if (lat !== null && lng !== null && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        var fecha = item.FechaCaptura || null;
+        return { lat: lat, lng: lng, accuracy: null, origen: 'firebase', fechaCaptura: fecha };
+      }
+      return null;
+    }
+
+    function aplicarGPSOriginal(fila, gpsData) {
+      if (!gpsData) return;
+      var lat = num(gpsData.lat), lng = num(gpsData.lng);
+      if (lat === null || lng === null) return;
+      if (lat === 0 && lng === 0) return; /* ★ PATCH F1 */
       var btn = fila.querySelector('.btn-gps');
-      var coordsEl = fila.querySelector('.gps-coords');
-      var linkEl = fila.querySelector('.gps-link');
-      var btnRow = fila.querySelector('.gps-btn-row');
-      if (!btn || !coordsEl || !linkEl) return;
-      btn.classList.remove('error-gps'); btn.classList.add('capturado');
-      btn.innerHTML = '<i class="fa-solid fa-check"></i> GPS OK';
-      btn.dataset.lat = gpsData.lat; btn.dataset.lng = gpsData.lng; btn.dataset.accuracy = gpsData.accuracy || '';
-      coordsEl.innerHTML = '<span class="lat-label">Lat:</span>' + gpsData.lat.toFixed(6) + ' <span class="lng-label">Lng:</span>' + gpsData.lng.toFixed(6) + '<br><span style="opacity:0.55">~' + Math.round(gpsData.accuracy || 0) + 'm</span>';
-      coordsEl.classList.add('visible', 'capturado');
-      linkEl.href = 'https://www.google.com/maps?q=' + gpsData.lat + ',' + gpsData.lng;
-      linkEl.classList.add('visible');
-      btnRow.classList.add('tiene-gps');
+      if (!btn) return;
+      var fechaISO = gpsData.fechaCaptura || new Date().toISOString();
+      btn.dataset.origLat = lat;
+      btn.dataset.origLng = lng;
+      btn.dataset.origFecha = fechaISO;
+      pintarMiniIcono(fila.querySelector('.gps-mini-orig'), lat, lng, fechaISO, 'original'); /* ★ PATCH I1 */
+    }
+
+    function aplicarGPSCapturada(fila, gpsData) {
+      if (!gpsData) return;
+      var lat = num(gpsData.lat), lng = num(gpsData.lng);
+      if (lat === null || lng === null) return;
+      if (lat === 0 && lng === 0) return; /* ★ PATCH F1 */
+      var btn = fila.querySelector('.btn-gps');
+      if (!btn) return;
+      var fechaISO = gpsData.fechaCaptura || new Date().toISOString();
+      btn.classList.remove('error-gps');
+      btn.classList.add('capturado');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Entregado';
+      btn.dataset.lat = lat; btn.dataset.lng = lng;
+      btn.dataset.accuracy = (num(gpsData.accuracy) !== null) ? num(gpsData.accuracy) : '';
+      btn.dataset.origen = 'dispositivo';
+      btn.dataset.fecha = fechaISO;
+      if (gpsData.recapturado) btn.dataset.recapturado = '1';
+      pintarMini(fila.querySelector('.gps-mini-nueva'), lat, lng, fechaISO, (gpsData.recapturado ? 'nueva' : 'entrega'), gpsData.accuracy, true);
+      fila.querySelector('.gps-btn-row').classList.add('tiene-gps');
+      if (typeof mostrarDistanciaCaptura === 'function') mostrarDistanciaCaptura(fila, btn);
+    }
+
+    /* ============================================================
+       ★ PATCH G2 — PERMANENCIA POR SELECCIÓN RÁPIDA (10m – 2h)
+       + Comentarios por cliente (★ PATCH H1 — campo inline)
+       ============================================================ */
+    function formatearMinutos(m) {
+      m = Math.round(num(m) || 0);
+      if (m < 60) return m + ' min';
+      var h = Math.floor(m / 60), r = m % 60;
+      return h + ' h' + (r > 0 ? ' ' + r + ' min' : '');
+    }
+
+    var permBotonActivo = null;
+    function togglePermanencia(boton) {
+      if (disenoIntacto !== true) return;
+      var pop = document.getElementById('permPopover');
+      if (pop.classList.contains('visible') && permBotonActivo === boton) { cerrarPopoverPerm(); return; }
+      permBotonActivo = boton;
+      var sel = boton.dataset.permMin ? num(boton.dataset.permMin) : null;
+      pop.querySelectorAll('.perm-chip').forEach(function(ch) {
+        ch.classList.toggle('sel', num(ch.getAttribute('data-min')) === sel);
+      });
+      pop.querySelector('.perm-quitar').style.display = (sel !== null) ? 'inline-flex' : 'none';
+      posicionarPopoverPerm(boton);
+    }
+    function cerrarPopoverPerm() {
+      document.getElementById('permPopover').classList.remove('visible');
+      permBotonActivo = null;
+    }
+    function posicionarPopoverPerm(boton) {
+      var pop = document.getElementById('permPopover');
+      pop.classList.remove('visible');
+      pop.style.visibility = 'hidden';
+      pop.style.display = 'flex'; /* medir sin mostrar */
+      var rect = boton.getBoundingClientRect();
+      var w = pop.offsetWidth, h = pop.offsetHeight;
+      var left = Math.max(8, Math.min(rect.left, window.innerWidth - w - 8));
+      var top = rect.bottom + 6;
+      if (top + h > window.innerHeight - 8) top = Math.max(8, rect.top - h - 6);
+      pop.style.left = left + 'px';
+      pop.style.top = top + 'px';
+      pop.style.display = '';
+      pop.style.visibility = '';
+      pop.classList.add('visible');
+    }
+    function seleccionarPermanencia(min) {
+      if (disenoIntacto !== true || !permBotonActivo) return;
+      var btn = permBotonActivo;
+      btn.dataset.permMin = String(min);
+      btn.dataset.permFecha = new Date().toISOString();
+      btn.classList.add('completada');
+      btn.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> ' + formatearMinutos(min);
+      btn.title = 'Cambiar tiempo de permanencia';
+      cerrarPopoverPerm();
+      actualizarActividadEnDispositivo();
+      guardarEstadoActualEnFirebase();
+    }
+    function quitarPermanenciaSel() {
+      if (disenoIntacto !== true || !permBotonActivo) return;
+      var btn = permBotonActivo;
+      delete btn.dataset.permMin;
+      delete btn.dataset.permFecha;
+      btn.classList.remove('completada');
+      btn.innerHTML = '<i class="fa-solid fa-stopwatch"></i> Permanencia';
+      btn.title = 'Registrar tiempo de permanencia';
+      cerrarPopoverPerm();
+      guardarEstadoActualEnFirebase();
+    }
+
+    /* Popover singleton: se crea una sola vez y se ancla al botón activo */
+    (function crearPopoverPerm() {
+      var pop = document.createElement('div');
+      pop.id = 'permPopover';
+      pop.className = 'perm-popover';
+      var titulo = document.createElement('div');
+      titulo.className = 'perm-pop-title';
+      titulo.innerHTML = '<i class="fa-solid fa-stopwatch"></i> Tiempo en la entrega';
+      var grid = document.createElement('div');
+      grid.className = 'perm-grid';
+      var html = '';
+      for (var m = 10; m <= 120; m += 5) {
+        html += '<button type="button" class="perm-chip" data-min="' + m + '" onclick="seleccionarPermanencia(' + m + ')">' + m + '<small>m</small></button>';
+      }
+      grid.innerHTML = html;
+      var quitar = document.createElement('button');
+      quitar.type = 'button'; quitar.className = 'perm-quitar';
+      quitar.innerHTML = '<i class="fa-solid fa-trash-can"></i> Quitar selección';
+      quitar.onclick = quitarPermanenciaSel;
+      pop.appendChild(titulo); pop.appendChild(grid); pop.appendChild(quitar);
+      document.body.appendChild(pop);
+      /* Cerrar al tocar fuera */
+      document.addEventListener('click', function(e) {
+        if (!pop.classList.contains('visible')) return;
+        if (pop.contains(e.target)) return;
+        if (e.target.closest && e.target.closest('.btn-perm')) return;
+        cerrarPopoverPerm();
+      }, true);
+      /* Cerrar al scrollear o rotar pantalla */
+      window.addEventListener('scroll', cerrarPopoverPerm, true);
+      window.addEventListener('resize', cerrarPopoverPerm);
+    })();
+
+    /* ★ PATCH H1 — Guardar comentario al salir del campo (listener delegado) */
+    document.getElementById('tbodyLineas').addEventListener('change', function(e) {
+      if (!e.target || !e.target.classList || !e.target.classList.contains('input-com')) return;
+      guardarEstadoActualEnFirebase();
+    });
+
+    /* --- Restauración desde Firebase --- */
+    function aplicarPermanencia(fila, permData) {
+      if (!permData) return;
+      var mins = num(permData.minutos);
+      if (mins === null || mins <= 0) return;
+      var btn = fila.querySelector('.btn-perm');
+      if (!btn) return;
+      btn.dataset.permMin = String(mins);
+      if (permData.registradoEn) btn.dataset.permFecha = permData.registradoEn;
+      btn.classList.add('completada');
+      btn.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> ' + (permData.duracionTxt || formatearMinutos(mins));
+      btn.title = 'Cambiar tiempo de permanencia';
+    }
+    function aplicarComentario(fila, texto) {
+      if (!texto) return;
+      var inp = fila.querySelector('.input-com'); /* ★ PATCH H1 */
+      if (inp) inp.value = String(texto).substring(0, 500);
     }
 
     /* ========== CONFIG REMOTA ========== */
     async function cargarConfiguracionRemota() {
       var c = new AbortController(); var t = setTimeout(function(){c.abort();}, 8000);
-      try { var r = await fetch(FIREBASE_DB_URL_CONFIG, {signal:c.signal}); if (!r.ok) throw new Error('HTTP '+r.status); return await r.json(); }
+      try { var r = await fetch(conAuth(FIREBASE_DB_URL_CONFIG), {signal:c.signal}); if (!r.ok) throw new Error('HTTP '+r.status); return await r.json(); }
       catch(e) { if (e.name==='AbortError') throw new Error('Tiempo agotado'); throw e; } finally { clearTimeout(t); }
     }
     function verificarExpiracion(c) { if (!c||!c.expiration) return false; return new Date()>new Date(c.expiration); }
 
     async function inicializarApp() {
+      if (!verificarDiseno()) { activarBloqueoDiseno(); return; }
+      disenoIntacto = true;
+
       status('Conectando con el servidor...','load');
+      await iniciarFirebaseAuth();
       try {
         var config = await cargarConfiguracionRemota();
         if (!config) throw new Error('Configuración vacía');
@@ -530,22 +1174,22 @@
           return;
         }
         var raw = config.items && Array.isArray(config.items) ? config.items : [];
+        /* ★ PATCH K1 — se conserva el campo fecha (fecha/hora única del despacho) */
         allItemsConfig = raw.map(function(i) {
-          if (typeof i === 'string') return {name:i,codigo:'',sector:'',ini:'',fin:''};
-          if (i && typeof i === 'object') return {name:i.name||'',codigo:i.codigo||'',sector:i.sector||'',ini:i.ini||'',fin:i.fin||''};
-          return {name:'',codigo:'',sector:'',ini:'',fin:''};
+          if (typeof i === 'string') return {name:i,codigo:'',sector:'',ini:'',fin:'',codclnt:'',fecha:'',gpsRegistrado:null};
+          if (i && typeof i === 'object') return {name:i.name||'',codigo:i.codigo||'',sector:i.sector||'',ini:i.ini||'',fin:i.fin||'',codclnt:String(i.CODCLNT || i.codclnt || ''),fecha:String(i.fecha || i.Fecha || ''),gpsRegistrado:extraerGPSDeItem(i)};
+          return {name:'',codigo:'',sector:'',ini:'',fin:'',codclnt:'',fecha:'',gpsRegistrado:null};
         }).filter(function(i){return i.name !== '';});
-        status('Datos. ' + allItemsConfig.length + ' disponibles.', 'ok');
+        try { var rCV = await fetch(conAuth(FIREBASE_DB_URL_ROOT + '/codigosValidos.json')); codigosValidosMap = (await rCV.json()) || {}; } catch(e) { codigosValidosMap = {}; }
+        status('', 'ok');
         document.getElementById('mainContent').classList.remove('hidden');
         document.getElementById('expiredScreen').classList.add('hidden');
         limpiarTabla();
 
-        /* Verificar sesión recordada */
         var recordado = obtenerSesionRecordada();
         if (recordado) {
           document.getElementById('codigoTransporteInput').value = recordado.codigo;
-          status('Sesión anterior recuperada: ' + recordado.codigo.toUpperCase(), 'ok');
-          setTimeout(function() { filtrarPorCodigo(); }, 800);
+          setTimeout(function() { filtrarPorCodigo(true); }, 800);
         }
       } catch(e) {
         status('Error: ' + e.message, 'err');
@@ -556,51 +1200,130 @@
     }
 
     /* ========== VERIFICAR CÓDIGO ========== */
+    /* ★ PATCH O1 — consulta la carpeta de la JORNADA ACTUAL:
+       codigosUsados/{hoy}/{codigo} */
     async function verificarSiCodigoFueUsado(codigo) {
       try {
-        var r = await fetch(FIREBASE_DB_URL_BASE_USADOS + '/' + codigo + '.json');
-        if (!r.ok) return { usado: false };
+        var diaHoy = claveDiaLocal(); /* ★ PATCH O1 */
+        var r = await fetch(conAuth(FIREBASE_DB_URL_BASE_USADOS + '/' + diaHoy + '/' + encodeURIComponent(codigo) + '.json'));
+        if (!r.ok) return { usado: true, razon: 'error_red' };
         var data = await r.json();
         if (data === null) return { usado: false };
-        if (data.estado === 'completado') return { usado: true, razon: 'completado' };
+
+        var completadas = {};
+        var tieneFechas = false;
+        if (Array.isArray(data.rutas)) {
+          data.rutas.forEach(function(h) {
+            if (h && h.incompleta === true) return; /* rutas huerfanas: no bloquean re-despachos */
+            if (Array.isArray(h.fechas) && h.fechas.length) tieneFechas = true;
+            (Array.isArray(h.fechas) ? h.fechas : []).forEach(function(f) { completadas[f] = true; });
+          });
+        }
+        if (Array.isArray(data.fechasRuta) && data.fechasRuta.length) tieneFechas = true;
+        if (data.estado === 'completado' && Array.isArray(data.fechasRuta)) {
+          data.fechasRuta.forEach(function(f) { completadas[f] = true; });
+        }
+
+        if (data.estado === 'completado') {
+          return { usado: false, nuevaRuta: true, completadas: completadas, tieneFechas: tieneFechas, previo: data };
+        }
         if (data.estado === 'en_proceso' && data.fechaInicio) {
-          var inicio = new Date(data.fechaInicio).getTime();
-          var transcurrido = Date.now() - inicio;
+          var refTiempo = data.ultimaActividad || data.fechaInicio;
+          var transcurrido = Date.now() - new Date(refTiempo).getTime();
           if (transcurrido > TIEMPO_LIBERAR_CODIGO_MS) {
-            return { usado: false, liberado: true, datosPrevios: data.datosFormulario || null };
+            return { usado: false, liberado: true, completadas: completadas, tieneFechas: tieneFechas, previo: data };
           }
-          return { usado: false, puedeContinuar: true, datosPrevios: data.datosFormulario || null };
+          return { usado: false, puedeContinuar: true, datosPrevios: data.datosFormulario || null, dispositivoId: data.dispositivoId || null, fechaInicio: data.fechaInicio || null, fechasRuta: Array.isArray(data.fechasRuta) ? data.fechasRuta : null, completadas: completadas, tieneFechas: tieneFechas, previo: data };
         }
         return { usado: true, razon: 'desconocido' };
-      } catch(e) { return { usado: false }; }
+      } catch(e) { return { usado: true, razon: 'error_red' }; }
+    }
+
+    /* ★ PATCH K1 — archiva una sesión previa cuyos ítems ya no existen en
+       formConfig (el admin reemplazó la lista): se conserva su trabajo */
+    async function archivarRutasHuerfanas(codigo, previo) {
+      if (!previo || !Array.isArray(previo.datosFormulario) || !previo.datosFormulario.length) return;
+      try {
+        var rutas = [];
+        var rr = await fetch(conAuth(urlCodigoDia(codigo) + '/rutas.json')); /* ★ PATCH O1 */
+        if (rr.ok) { var j = await rr.json(); if (Array.isArray(j)) rutas = j; }
+        rutas.push({
+          rutaId: previo.rutaId || null,
+          fechas: Array.isArray(previo.fechasRuta) ? previo.fechasRuta : [],
+          fechaFin: new Date().toISOString(),
+          clientes: previo.datosFormulario.length,
+          datosFormulario: previo.datosFormulario,
+          incompleta: true
+        });
+        if (rutas.length > 5) rutas = rutas.slice(-5);
+        await fetch(conAuth(urlCodigoDia(codigo) + '/rutas.json'), { /* ★ PATCH O1 */
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(rutas)
+        });
+      } catch(e) { console.error('No se pudo archivar la sesión previa:', e); }
     }
 
     /* ========== GUARDAR ========== */
+    /* ★ PATCH O1 — FIN DE RUTA escribe en la carpeta del día de la sesión */
     async function guardarFormularioCompleto() {
+      if (disenoIntacto !== true) return false;
       var filas = document.querySelectorAll('#tbodyLineas tr');
       if (filas.length === 0 || !codigoTransporteActual) return false;
       var entregas = recopilarDatosFormulario();
       entregas.forEach(function(e) { e.fechaCambio = new Date().toISOString(); });
+      var historial = [];
+      var prev = null;
       try {
-        var r = await fetch(FIREBASE_DB_URL_BASE_USADOS + '/' + codigoTransporteActual + '.json', {
+        var rPrev = await fetch(conAuth(urlCodigoDia(codigoTransporteActual) + '.json')); /* ★ PATCH O1 */
+        if (rPrev.ok) prev = await rPrev.json();
+      } catch(e) {}
+      if (prev && Array.isArray(prev.rutas)) historial = prev.rutas.slice();
+      if (prev && prev.estado === 'en_proceso' && prev.rutaId && prev.rutaId !== (rutaIdActualSesion || null) && Array.isArray(prev.datosFormulario) && prev.datosFormulario.length) {
+        historial.push({
+          rutaId: prev.rutaId,
+          fechas: Array.isArray(prev.fechasRuta) ? prev.fechasRuta : [],
+          fechaFin: new Date().toISOString(),
+          clientes: prev.datosFormulario.length,
+          datosFormulario: prev.datosFormulario,
+          incompleta: true
+        });
+      }
+      if (rutaIdActualSesion) {
+        historial = historial.filter(function(h){ return h.rutaId !== rutaIdActualSesion; });
+        historial.push({
+          rutaId: rutaIdActualSesion,
+          fechas: fechasRutaSesion || [],
+          fechaInicio: fechaInicioSesion || null,
+          fechaFin: new Date().toISOString(),
+          clientes: entregas.length,
+          datosFormulario: entregas
+        });
+        if (historial.length > 5) historial = historial.slice(-5);
+      }
+      try {
+        var r = await fetch(conAuth(urlCodigoDia(codigoTransporteActual) + '.json'), { /* ★ PATCH O1 */
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ estado: 'completado', fechaFin: new Date().toISOString(), datosFormulario: entregas })
+          body: JSON.stringify({ estado: 'completado', dia: diaSesionActual || claveDiaLocal(), rutaId: rutaIdActualSesion || null, fechasRuta: fechasRutaSesion || [], rutas: historial, fechaInicio: fechaInicioSesion || null, fechaFin: new Date().toISOString(), dispositivoId: obtenerIdDispositivo(), datosFormulario: entregas })
         });
         if (!r.ok) throw new Error('HTTP'); return true;
       } catch(e) { return false; }
     }
     async function ejecutarGuardado() {
+      if (disenoIntacto !== true) { msg('Formulario no disponible.','err'); return; }
       var filas = document.querySelectorAll('#tbodyLineas tr');
       var btn = document.getElementById('btnGuardar');
       if (filas.length === 0) { msg('No hay datos para guardar.','err'); return; }
       if (!codigoTransporteActual) { msg('No se ha definido un código.','err'); return; }
       btn.disabled = true; btn.classList.add('guardando');
-      msg('Guardando en el servidor...','info');
+      msg('Guardando fin de ruta en el servidor...','info');
       try {
         var ok = await guardarFormularioCompleto();
         if (ok) {
-          msg('Código ' + codigoTransporteActual + ' guardado con éxito.', 'ok');
-          mostrarToast('Código ' + codigoTransporteActual + ' guardado');
+          var codigoGuardado = codigoTransporteActual;
+          codigoTransporteActual = '';
+          guardadoPendiente = false;
+          msg('Fin de ruta. Código ' + codigoGuardado + ' guardado con éxito.', 'ok');
+          mostrarToast('Fin de ruta guardado');
           limpiarSesionDispositivo();
           setTimeout(resetearFormulario, 1500);
         } else { msg('Error de red al guardar.','err'); btn.disabled=false; btn.classList.remove('guardando'); }
@@ -608,131 +1331,217 @@
     }
 
     /* ========== FILTRADO ========== */
-    async function filtrarPorCodigo() {
+    var filtrandoEnCurso = false;
+    async function filtrarPorCodigo(autoRestaurada) {
+      if (filtrandoEnCurso) return;
+      filtrandoEnCurso = true;
+      try { await filtrarPorCodigoInterno(autoRestaurada); }
+      finally { filtrandoEnCurso = false; }
+    }
+
+    async function filtrarPorCodigoInterno(autoRestaurada) {
+      if (disenoIntacto !== true) return;
       var input = document.getElementById('codigoTransporteInput');
       var btnCargar = document.getElementById('btnCargar');
       var codigo = input.value.trim();
       if (!codigo) { msg('Escribe un código de transporte.','warn'); input.focus(); return; }
+
+      var itemsFiltrados = allItemsConfig.filter(function(item) { return item.codigo.toLowerCase() === codigo.toLowerCase(); });
+      var hayNodoValidos = Object.keys(codigosValidosMap).length > 0;
+      var estaEnValidos = true;
+      if (hayNodoValidos) {
+        estaEnValidos = false;
+        for (var k in codigosValidosMap) { if (String(k).toLowerCase() === codigo.toLowerCase()) { estaEnValidos = true; break; } }
+      }
+      if (itemsFiltrados.length === 0 || !estaEnValidos) {
+        msg('Sin datos para asignar', 'err');
+        limpiarSesionDispositivo();
+        input.select(); input.focus();
+        return;
+      }
+
       msg('Verificando estado del código...','info');
       var resultado = await verificarSiCodigoFueUsado(codigo);
-      if (resultado.usado && resultado.razon === 'completado') {
-        msg('El código "' + codigo + '" ya fue guardado correctamente.','err');
-        limpiarSesionDispositivo(); input.value = ''; input.focus(); return;
+      if (resultado.usado && resultado.razon === 'error_red') {
+        msg('No se pudo verificar el estado del código (sin conexión al servidor). Reintenta en unos segundos.', 'err');
+        return;
       }
       if (resultado.usado && resultado.razon === 'desconocido') {
-        msg('El código "' + codigo + '" tiene estado inesperado.','err');
+        msg('Sin datos para asignar', 'err');
         limpiarSesionDispositivo(); input.value = ''; input.focus(); return;
       }
-      codigoTransporteActual = codigo;
-      var itemsFiltrados = allItemsConfig.filter(function(item) { return item.codigo.toLowerCase() === codigo.toLowerCase(); });
-      var datosPrevios = resultado.datosPrevios || null;
-      var esContinuacion = resultado.puedeContinuar === true;
+
+      var completadas = resultado.completadas || {};
+      var itemsSesion = null;
+      var datosPrevios = null;
+      var esContinuacion = false;
       var esLiberado = resultado.liberado === true;
+
+      if (resultado.puedeContinuar === true) {
+        var miDispositivo = obtenerIdDispositivo();
+        if (resultado.dispositivoId && resultado.dispositivoId !== miDispositivo) {
+          msg('Sin datos para asignar', 'err');
+          limpiarSesionDispositivo();
+          input.value = '';
+          input.focus();
+          return;
+        }
+        if (resultado.fechasRuta && resultado.fechasRuta.length) {
+          var restaurar = itemsFiltrados.filter(function(it) { return resultado.fechasRuta.indexOf(claveFechaItem(it)) !== -1; });
+          if (restaurar.length > 0) {
+            itemsSesion = restaurar;
+            datosPrevios = resultado.datosPrevios || null;
+            esContinuacion = true;
+          }
+        } else if (resultado.datosPrevios && resultado.datosPrevios.length) {
+          itemsSesion = itemsFiltrados.filter(function(it) { return !completadas[claveFechaItem(it)]; });
+          if (itemsSesion.length === 0) itemsSesion = itemsFiltrados;
+          datosPrevios = resultado.datosPrevios;
+          esContinuacion = true;
+        }
+      }
+
+      if (!itemsSesion) {
+        if (resultado.puedeContinuar === true && resultado.datosPrevios && resultado.datosPrevios.length) {
+          await archivarRutasHuerfanas(codigo, resultado.previo);
+        }
+        var hayItemsConFecha = itemsFiltrados.some(function(it) { return claveFechaItem(it) !== 'sin-fecha'; });
+        if (resultado.nuevaRuta === true && resultado.tieneFechas !== true && !hayItemsConFecha) {
+          msg('Sin datos para asignar', 'err');
+          limpiarSesionDispositivo(); input.value = ''; input.focus();
+          return;
+        }
+        itemsSesion = itemsFiltrados.filter(function(it) { return !completadas[claveFechaItem(it)]; });
+        if (itemsSesion.length === 0) {
+          msg('Sin datos para asignar', 'err');
+          limpiarSesionDispositivo(); input.value = ''; input.focus();
+          return;
+        }
+      }
+
+      codigoTransporteActual = codigo;
+      /* ★ PATCH O1 — la jornada se fija al INICIAR la sesión: si el repartidor
+         trabaja cruzando la medianoche, todo sigue guardando en la carpeta
+         del día en que empezó la ruta */
+      diaSesionActual = (esContinuacion && resultado.previo && resultado.previo.dia) ? resultado.previo.dia : claveDiaLocal();
+      fechasRutaSesion = fechasDeItems(itemsSesion); /* ★ PATCH K1 */
+      rutaIdActualSesion = calcularRutaId(itemsSesion);
+
       if (esContinuacion) msg('Continuando sesión. Datos restaurados.', 'info');
-      else if (esLiberado) { msg('Sesión anterior liberada. Iniciando nueva.', 'warn'); datosPrevios = null; }
-      else msg('Mostrando ' + itemsFiltrados.length + ' ítem(s).', 'ok');
+      else if (esLiberado) { msg('Sesión anterior liberada. Iniciando nueva.', 'warn'); }
+      else if (resultado.nuevaRuta) { msg('Nueva ruta detectada: ' + itemsSesion.length + ' despacho(s) pendiente(s).', 'warn'); }
+      else msg('Mostrando ' + itemsSesion.length + ' ítem(s).', 'ok');
+
+      if (autoRestaurada === true) {
+        document.querySelector('.code-section').classList.add('hidden');
+        msg('Sesión restaurada. Continúa donde quedaste.', 'info');
+      }
 
       guardarSesionEnDispositivo(codigo);
       input.disabled = true; btnCargar.disabled = true;
-      fechaInicioSesion = esContinuacion ? null : new Date().toISOString();
-      poblarTabla(itemsFiltrados, datosPrevios);
+      fechaInicioSesion = esContinuacion ? (resultado.fechaInicio || new Date().toISOString()) : new Date().toISOString();
+      poblarTabla(itemsSesion, datosPrevios);
       if (!esContinuacion) guardarEstadoActualEnFirebase();
       iniciarTimerInactividad();
     }
 
     document.getElementById('codigoTransporteInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') filtrarPorCodigo(); });
-    document.getElementById('tbodyLineas').addEventListener('input', function(e) { if (e.target.classList.contains('sector')) e.target.value = e.target.value.toUpperCase(); });
 
     function limpiarTabla() {
       document.getElementById('tbodyLineas').innerHTML = '';
       document.getElementById('itemCount').textContent = '0';
       document.getElementById('emptyState').classList.remove('hidden');
       document.getElementById('tablaItems').querySelector('thead').style.display = 'none';
-      itemsOriginalesCargados = [];
     }
     function poblarTabla(items, datosPrevios) {
       var tbody = document.getElementById('tbodyLineas');
       tbody.innerHTML = '';
-      itemsOriginalesCargados = [];
       var contador = 0;
       document.getElementById('emptyState').classList.add('hidden');
       document.getElementById('tablaItems').querySelector('thead').style.display = '';
       items.forEach(function(item, idx) {
         contador++;
         var fila = document.createElement('tr');
+        fila.dataset.codclnt = item.codclnt || '';
+        fila.dataset.fechaDespacho = item.fecha || ''; /* ★ PATCH K1 — fecha del despacho */
         fila.style.animation = 'fadeUp 0.35s ease ' + Math.min(idx * 30, 400) + 'ms both';
-        var sectorValue = (item.sector || '').toUpperCase().replace(/"/g, '&quot;');
+        var sectorValue = esc((item.sector || '').toUpperCase());
         var iniValue = limpiarHora(item.ini);
         var finValue = limpiarHora(item.fin);
         var datoPrevio = null;
         if (datosPrevios && Array.isArray(datosPrevios)) {
           datoPrevio = datosPrevios.find(function(d) { return d.item && d.item.toLowerCase() === item.name.toLowerCase(); });
         }
-        var sectorR = sectorValue, iniR = iniValue, finR = finValue, gpsR = null;
+        var sectorR = sectorValue, iniR = iniValue, finR = finValue;
         if (datoPrevio) {
-          if (datoPrevio.sector) sectorR = datoPrevio.sector.toUpperCase().replace(/"/g, '&quot;');
+          if (datoPrevio.sector) sectorR = esc(datoPrevio.sector.toUpperCase());
           if (datoPrevio.inicio) iniR = datoPrevio.inicio;
           if (datoPrevio.fin) finR = datoPrevio.fin;
-          if (datoPrevio.gps) gpsR = datoPrevio.gps;
         }
-        itemsOriginalesCargados.push({ name: item.name, sector: item.sector || '', ini: iniValue, fin: finValue });
+
+        var horarioTxt = (iniR || finR) ? ((iniR || '--:--') + ' – ' + (finR || '--:--')) : '—';
+
+        /* ★ PATCH H1 — fila compacta: GPS + permanencia + comentario en una línea;
+           sector y horario al nivel de la ubicación original */
         fila.innerHTML =
           '<td><span class="row-num">' + contador + '</span></td>' +
-          '<td><span class="item-name-text">' + item.name + '</span></td>' +
+          '<td class="celda-nombre"><span class="item-name-text">' + esc(item.name) + '</span></td>' +
           '<td><div class="gps-cell">' +
             '<div class="gps-btn-row">' +
-              '<button type="button" class="btn-gps" onclick="capturarGPS(this)"><i class="fa-solid fa-satellite-dish"></i> GPS</button>' +
-              '<button type="button" class="btn-gps-eliminar" onclick="eliminarGPS(this)" title="Eliminar ubicación"><i class="fa-solid fa-xmark"></i></button>' +
+              '<button type="button" class="btn-gps" onclick="capturarGPS(this)"><i class="fa-solid fa-satellite-dish"></i> Entrega Pendiente</button>' +
+              '<button type="button" class="btn-gps-eliminar" onclick="eliminarGPS(this)" title="Eliminar captura"><i class="fa-solid fa-xmark"></i></button>' +
+              '<button type="button" class="btn-perm" onclick="togglePermanencia(this)" title="Registrar tiempo de permanencia"><i class="fa-solid fa-stopwatch"></i> Permanencia</button>' +
+              '<input type="text" class="input-com" maxlength="500" placeholder="Comentario..." autocomplete="off">' +
             '</div>' +
-            '<div class="gps-coords"></div>' +
-            '<a class="gps-link" href="#" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square"></i> Maps</a>' +
+            '<div class="gps-sub-row">' +
+              '<a class="gps-mini gps-mini-orig" target="_blank" rel="noopener noreferrer"></a>' +
+              '<a class="gps-mini gps-mini-nueva" target="_blank" rel="noopener noreferrer"></a>' +
+              '<span class="info-sector" data-sector="' + sectorR + '">' + (sectorR || '—') + '</span>' +
+              '<span class="sep-dot">·</span>' +
+              '<span class="info-horario" data-inicio="' + esc(iniR || '') + '" data-fin="' + esc(finR || '') + '">' + esc(horarioTxt) + '</span>' +
+            '</div>' +
             '<div class="gps-error-detail"></div>' +
-          '</div></td>' +
-          '<td><input type="text" class="tbl-input sector" placeholder="Ej: Parque Carcelen" value="' + sectorR + '"></td>' +
-          '<td><select class="tbl-input time inicio">' + opcionesDeHorario + '</select></td>' +
-          '<td><select class="tbl-input time fin">' + opcionesDeHorario + '</select></td>';
+            '<div class="gps-distancia"></div>' +
+          '</div></td>';
         tbody.appendChild(fila);
-        if (iniR) fila.querySelector('.inicio').value = iniR;
-        if (finR) fila.querySelector('.fin').value = finR;
-        if (gpsR) restaurarGPSenFila(fila, gpsR);
+
+        var gpsOrig = (datoPrevio && datoPrevio.gpsOriginal) ? datoPrevio.gpsOriginal : (item.gpsRegistrado || null);
+        try { if (gpsOrig) aplicarGPSOriginal(fila, gpsOrig); } catch(e) { console.error('Error GPS original fila ' + contador, e); }
+        try { if (datoPrevio && datoPrevio.gps) aplicarGPSCapturada(fila, datoPrevio.gps); } catch(e) { console.error('Error restaurando GPS fila ' + contador, e); }
+        /* ★ PATCH G2 — restaurar permanencia + comentario */
+        try { if (datoPrevio && datoPrevio.permanencia) aplicarPermanencia(fila, datoPrevio.permanencia); } catch(e) { console.error('Error restaurando permanencia fila ' + contador, e); }
+        try { if (datoPrevio && datoPrevio.comentario) aplicarComentario(fila, datoPrevio.comentario); } catch(e) { console.error('Error restaurando comentario fila ' + contador, e); }
       });
       document.getElementById('itemCount').textContent = contador;
+      /* ★ PATCH E2/O1 — activar mapa con código + jornada de la sesión */
+      document.getElementById('btnMapa').href = 'mapa.html?codigo=' + encodeURIComponent(codigoTransporteActual) + '&dia=' + (diaSesionActual || claveDiaLocal());
+      document.getElementById('btnMapa').classList.remove('disabled');
     }
     function resetearFormulario() {
       var input = document.getElementById('codigoTransporteInput');
       codigoTransporteActual = '';
+      diaSesionActual = null; /* ★ PATCH O1 */
+      rutaIdActualSesion = null; /* ★ PATCH K1 */
+      fechasRutaSesion = []; /* ★ PATCH K1 */
       fechaInicioSesion = null;
+      document.querySelector('.code-section').classList.remove('hidden');
       input.value = ''; input.disabled = false;
       document.getElementById('btnCargar').disabled = false;
       document.getElementById('btnGuardar').disabled = false;
       document.getElementById('btnGuardar').classList.remove('guardando');
+      /* ★ PATCH E2 — desactivar botón de mapa completo */
+      var bm = document.getElementById('btnMapa');
+      bm.removeAttribute('href'); bm.classList.add('disabled');
       limpiarTabla();
       document.getElementById('mensaje').textContent = '';
       document.getElementById('mensaje').className = '';
       input.focus();
     }
 
-    /* ========== CSV ========== */
-    function generarCSVBlob() {
-      var filas = document.querySelectorAll('#tbodyLineas tr');
-      if (filas.length === 0) return null;
-      var csv = '#,Nombre,Sector,Desde,Hasta,Latitud,Longitud,Precisión(m),Maps\n';
-      filas.forEach(function(f) {
-        var n = f.querySelector('.item-name-text') ? f.querySelector('.item-name-text').textContent.trim() : '';
-        var s = f.querySelector('.sector') ? f.querySelector('.sector').value : '';
-        var i = f.querySelector('.inicio') ? f.querySelector('.inicio').value : '';
-        var fi = f.querySelector('.fin') ? f.querySelector('.fin').value : '';
-        var b = f.querySelector('.btn-gps');
-        var lat = b&&b.dataset.lat?b.dataset.lat:''; var lng = b&&b.dataset.lng?b.dataset.lng:''; var acc = b&&b.dataset.accuracy?b.dataset.accuracy:'';
-        var mu = (lat&&lng)?'https://www.google.com/maps?q='+lat+','+lng:'';
-        var esc = function(x){return '"'+(x||'').replace(/"/g,'""')+'"';};
-        csv += f.cells[0].textContent.trim()+','+esc(n)+','+esc(s)+','+i+','+fi+','+lat+','+lng+','+acc+','+esc(mu)+'\n';
-      });
-      return new Blob([csv], {type:'text/csv;charset=utf-8;'});
-    }
-
     document.getElementById('gpsModal').addEventListener('click', function(e) { if (e.target === this) cerrarModalGPS(); });
+    document.getElementById('confirmModal').addEventListener('click', function(e) { if (e.target === this) cerrarConfirmRecaptura(); });
     window.addEventListener('DOMContentLoaded', inicializarApp);
   </script>
+<a href="monitor.html" style="font-size:10px;color:#555;text-decoration:none;position:fixed;bottom:8px;right:12px;">Monitor</a>
 </body>
 </html>
