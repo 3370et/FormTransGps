@@ -382,27 +382,24 @@
     var UMB_SALTO_MIN = 60;     /* min: diferencia entre capturas consecutivas que dispara alerta de salto en el mapa */
 
     /* Persistencia de sesion */
-    var SESSION_CLAVE = 'pm_sesion';                /* nombre en localStorage */
-    var SESSION_DURACION_MS = 12 * 60 * 60 * 1000;  /* expira tras 12 h sin actividad */
+    var SESSION_CLAVE = 'pm_sesion';
+    var SESSION_DURACION_MS = 12 * 60 * 60 * 1000;
 
     /* ===== ESTADO ===== */
     var timerAutoActualizar = null;
     var datosGlobales = { procesos: [], completados: [], gpsItems: [], totalGps: 0, noIniciadas: [], validosOk: false };
     var registrosPorCodigo = {};
-    var ultimaFirmaDatos = null;   /* fingerprint del ultimo JSON recibido */
-    var ultimoRenderMs = 0;        /* momento del ultimo render completo */
+    var ultimaFirmaDatos = null;
+    var ultimoRenderMs = 0;
     var verificandoAcceso = false;
     var usuarioActual = null;
-    var claveSesionActual = null;  /* clave de la sesion activa (para renovar la sesion) */
+    var claveSesionActual = null;
 
     /* ============================================================
        ★ PATCH O1m — AGRUPACION POR JORNADAS
-       codigosUsados/{YYYY-MM-DD}/{codigo}. El monitor lista las
-       carpetas de fecha (chips), lee SOLO la activa y los registros
-       previos a esta organizacion quedan agrupados en "Antiguos".
        ============================================================ */
-    var jornadaSeleccionada = null;   /* 'YYYY-MM-DD' | '__legacy__' | null (sin resolver) */
-    var clavesJornadasCache = null;   /* { fechas:[], legacy:[] } para no re-listar en cada poll */
+    var jornadaSeleccionada = null;
+    var clavesJornadasCache = null;
     function esCarpetaDia(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }
     function claveDiaLocal() {
       var d = new Date(); function p(n) { return String(n).padStart(2, '0'); }
@@ -413,8 +410,6 @@
       var p = iso.split('-'); return p[2] + '/' + p[1] + '/' + p[0];
     }
     function esJornadaFecha() { return !!(jornadaSeleccionada && jornadaSeleccionada !== '__legacy__'); }
-    /* Lista las claves de un nodo: shallow primero (barato, ideal para el
-       poll); el fallback completo solo la primera vez para no descargar todo */
     async function leerClaves(url, permitirFallback) {
       try {
         var r = await fetch(url + '.json?shallow=true');
@@ -424,7 +419,7 @@
           if (typeof j === 'object') return Object.keys(j);
         }
       } catch (e) {}
-      if (!permitirFallback) return null; /* en poll: no descargar el nodo completo */
+      if (!permitirFallback) return null;
       var r2 = await fetch(url + '.json');
       if (!r2.ok) throw new Error('HTTP ' + r2.status);
       var j2 = await r2.json();
@@ -449,14 +444,13 @@
         c.classList.toggle('sel', c.getAttribute('data-jor') === jornadaSeleccionada);
       });
     }
-    /* Click en chip: cambia jornada y fuerza recarga */
     document.getElementById('jornadasBar').addEventListener('click', function (e) {
       var b = e.target && e.target.closest ? e.target.closest('.chip-jor') : null;
       if (!b) return;
       var j = b.getAttribute('data-jor');
       if (j === jornadaSeleccionada) return;
       jornadaSeleccionada = j;
-      ultimaFirmaDatos = null; ultimoRenderMs = 0; /* fuerza re-render */
+      ultimaFirmaDatos = null; ultimoRenderMs = 0;
       cargarDatos();
     });
 
@@ -472,18 +466,15 @@
       var n = Number(v);
       return isFinite(n) ? n : null;
     }
-    /* Entrega finalizada = tiene captura GPS ACTUAL del dispositivo (origen "dispositivo") */
     function tieneGpsDispositivo(it) {
       return !!(it && it.gps && it.gps.origen === 'dispositivo'
         && numLimpio(it.gps.lat) != null && numLimpio(it.gps.lng) != null);
     }
-    /* "HH:MM" -> minutos desde medianoche, o null si no es parseable */
     function minutosHora(h) {
       if (!h || typeof h !== 'string' || !/^\d{1,2}:\d{2}/.test(h)) return null;
       var p = h.split(':');
       return (+p[0]) * 60 + (+p[1]);
     }
-    /* Timestamp absoluto (ms) desde fechaCaptura ISO o texto "DD/MM/YYYY HH:MM:SS" */
     function tstamp(strIso, strTxt) {
       if (strIso) { var t = Date.parse(strIso); if (!isNaN(t)) return t; }
       if (strTxt) {
@@ -498,14 +489,14 @@
     function guardarSesion(clave, nombre) {
       try {
         localStorage.setItem(SESSION_CLAVE, JSON.stringify({ c: clave, n: nombre, t: Date.now() }));
-      } catch (e) { /* storage bloqueado o modo privado: simplemente no persiste */ }
+      } catch (e) {}
     }
     function leerSesion() {
       try {
         var s = JSON.parse(localStorage.getItem(SESSION_CLAVE));
         if (s && typeof s.c === 'string' && s.c && typeof s.n === 'string' && isFinite(s.t)) {
           if (Date.now() - s.t < SESSION_DURACION_MS) return s;
-          localStorage.removeItem(SESSION_CLAVE); /* expiro */
+          localStorage.removeItem(SESSION_CLAVE);
         }
       } catch (e) {}
       return null;
@@ -541,8 +532,7 @@
       });
     }
 
-    /* ===== BOTONES DE RUTA: delegacion en fase captura =====
-       Sustituye los onclick inline y evita inyeccion via el codigo */
+    /* ===== BOTONES DE RUTA: delegacion en fase captura ===== */
     document.addEventListener('click', function(e) {
       var b = e.target && e.target.closest ? e.target.closest('[data-accion]') : null;
       if (!b) return;
@@ -562,7 +552,7 @@
       }
     });
 
-    /* ===== LOGIN (validado contra superUsuarios en Firebase) ===== */
+    /* ===== LOGIN ===== */
     document.getElementById('loginPass').addEventListener('keydown', function(e) {
       if (e.key === 'Enter') verificarAcceso();
     });
@@ -599,7 +589,6 @@
       }
     }
 
-    /* Devuelve el nombre del superusuario, o null si la clave no existe en Firebase */
     async function validarClaveEnFirebase(clave) {
       var r = await fetch(FIREBASE_URL_SUPER + '/' + encodeURIComponent(clave) + '.json');
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -617,13 +606,12 @@
       document.getElementById('dashUsuarioTxt').textContent = nombre;
       document.getElementById('dashUsuario').classList.add('visible');
       ultimaFirmaDatos = null; ultimoRenderMs = 0;
-      jornadaSeleccionada = null; /* ★ PATCH O1m — resuelve la jornada al entrar */
+      jornadaSeleccionada = null;
       cargarDatos();
       iniciarAutoActualizar();
       mostrarToast('Bienvenido: ' + esc(nombre), 'ok');
     }
 
-    /* Restaurar la sesion guardada al abrir la pagina (F5 o reabrir) */
     async function restaurarSesion() {
       var s = leerSesion();
       if (!s) return;
@@ -637,17 +625,14 @@
         var nombre = await validarClaveEnFirebase(s.c);
         if (nombre !== null) {
           entrar(nombre, s.c);
-          guardarSesion(s.c, nombre); /* renueva el timestamp */
+          guardarSesion(s.c, nombre);
         } else {
-          /* La clave fue revocada en Firebase mientras la sesion estaba guardada */
           borrarSesion();
           var err = document.getElementById('loginError');
           err.innerHTML = '<i class="fa-solid fa-xmark"></i> La clave guardada ya no es valida, ingresa de nuevo';
           err.classList.add('visible');
         }
       } catch (e) {
-        /* Sin conexion a Firebase: la sesion ya fue validada antes, se mantiene.
-           El panel mostrara su error de conexion habitual al cargar los datos. */
         entrar(s.n, s.c);
         guardarSesion(s.c, s.n);
         mostrarToast('Sesion restaurada sin verificacion (sin conexion)', 'ok');
@@ -853,7 +838,6 @@
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a'); a.href = url;
       var f = new Date();
-      /* ★ PATCH O1m — el nombre del CSV lleva la jornada activa */
       a.download = 'transportes_' + (esJornadaFecha() ? jornadaSeleccionada + '_' : '') + f.getFullYear() + '-' + String(f.getMonth()+1).padStart(2,'0') + '-' + String(f.getDate()).padStart(2,'0') + '_' + String(f.getHours()).padStart(2,'0') + String(f.getMinutes()).padStart(2,'0') + '.csv';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
@@ -894,8 +878,6 @@
       var btn = document.getElementById('btnActualizar');
       btn.classList.add('actualizando'); btn.innerHTML = '<i class="fa-solid fa-circle-notch"></i> Actualizando...';
       try {
-        /* ★ PATCH O1m — Paso 1: jornadas disponibles en la raiz
-           (shallow en cada poll —barato—; fallback completo solo la 1a vez) */
         var clavesRaiz = await leerClaves(FIREBASE_URL, !clavesJornadasCache);
         if (clavesRaiz) {
           clavesJornadasCache = {
@@ -905,8 +887,6 @@
           pintarChipsJornadas(clavesJornadasCache.fechas, clavesJornadasCache.legacy);
         }
 
-        /* ★ PATCH O1m — Paso 2: resolver jornada activa (hoy > mas reciente > antiguos).
-           Si la seleccionada fue borrada (mantenimiento), se vuelve a resolver. */
         var cache = clavesJornadasCache || { fechas: [], legacy: [] };
         if (jornadaSeleccionada === '__legacy__' && !cache.legacy.length) jornadaSeleccionada = null;
         else if (esJornadaFecha() && cache.fechas.indexOf(jornadaSeleccionada) === -1) jornadaSeleccionada = null;
@@ -918,16 +898,13 @@
           marcarChipSeleccionado();
         }
 
-        /* ★ PATCH O1m — Paso 3: leer SOLO la carpeta de la jornada activa */
         var urlLectura = esJornadaFecha() ? FIREBASE_URL + '/' + jornadaSeleccionada : FIREBASE_URL;
         var r = await fetch(urlLectura + '.json');
         if (!r.ok) throw new Error('HTTP ' + r.status);
         var data = await r.json();
         var sesiones = {};
         if (jornadaSeleccionada === '__legacy__') {
-          /* registros anteriores a la organizacion por jornadas (claves que no son fecha) */
           Object.keys(data || {}).forEach(function(k) { if (!esCarpetaDia(k)) sesiones[k] = data[k]; });
-          /* la raiz completa permite refrescar el cache de chips sin fetch extra */
           if (!clavesRaiz) {
             clavesJornadasCache = {
               fechas: Object.keys(data || {}).filter(esCarpetaDia).sort().reverse(),
@@ -939,8 +916,6 @@
           sesiones = (data && typeof data === 'object') ? data : {};
         }
 
-        /* Auxiliares no criticos: codigos validos y configuracion del formulario.
-           Si fallan, el panel sigue funcionando y la seccion "sin iniciar" lo avisa. */
         var validos = null, formCfg = null;
         try {
           var rv = await fetch(FIREBASE_URL_VALIDOS + '.json');
@@ -949,9 +924,6 @@
           if (rc.ok) formCfg = await rc.json();
         } catch (e2) { validos = null; formCfg = null; }
 
-        /* Si nada cambio y el render es reciente (< 60 s), solo actualiza la hora.
-           ★ PATCH O1m — la firma incluye la jornada seleccionada.
-           Excepcion: al cumplirse 60 s se fuerza re-render para refrescar el semaforo horario. */
         var firma = JSON.stringify([jornadaSeleccionada, data, validos, formCfg]);
         if (firma === ultimaFirmaDatos && Date.now() - ultimoRenderMs < 60000) {
           document.getElementById('rcUltima').textContent = new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -966,12 +938,23 @@
         Object.keys(sesiones).forEach(function(codigo) {
           var entry = sesiones[codigo];
           if (!entry || typeof entry !== 'object') return;
-          var items = entry.datosFormulario || [];
+          /* ★ PATCH Q1 — fusionar la ruta ACTUAL (datosFormulario) con las
+             archivadas (rutas[]) para ver TODAS las entregas del codigo en
+             la jornada. La actual va primero; las anteriores despues. */
+          var items = Array.isArray(entry.datosFormulario) ? entry.datosFormulario.slice() : [];
+          var nRutasHoy = 1;
+          if (Array.isArray(entry.rutas)) {
+            entry.rutas.forEach(function(h) {
+              if (h && Array.isArray(h.datosFormulario) && h.datosFormulario.length) {
+                nRutasHoy++;
+                h.datosFormulario.forEach(function(it) { items.push(it); });
+              }
+            });
+          }
           var gpsCount = 0;
           var ultCapMs = 0;
-          if (Array.isArray(items)) {
+          if (items.length) {
             items.forEach(function(item) {
-              /* Inactividad: solo capturas REALES del dispositivo reinician el reloj */
               if (item.gps && item.gps.origen === 'dispositivo' && item.gps.fechaCaptura) {
                 var tCap = new Date(item.gps.fechaCaptura).getTime();
                 if (!isNaN(tCap) && tCap > ultCapMs) ultCapMs = tCap;
@@ -987,7 +970,7 @@
             var refMs = ultCapMs || new Date(entry.fechaInicio || Date.now()).getTime();
             inactMin = Math.max(0, Math.floor((Date.now() - refMs) / 60000));
           }
-          var registro = { codigo: codigo, estado: entry.estado || 'desconocido', fechaInicio: entry.fechaInicio || null, fechaFin: entry.fechaFin || null, items: items, gpsCount: gpsCount, inactMin: inactMin };
+          var registro = { codigo: codigo, estado: entry.estado || 'desconocido', fechaInicio: entry.fechaInicio || null, fechaFin: entry.fechaFin || null, items: items, gpsCount: gpsCount, inactMin: inactMin, rutasHoy: nRutasHoy };
           registrosPorCodigo[codigo] = registro;
           if (entry.estado === 'en_proceso') procesos.push(registro);
           else if (entry.estado === 'completado') { completados.push(registro); totalGps += gpsCount; }
@@ -997,13 +980,12 @@
         completados.sort(function(a, b) { return new Date(b.fechaFin || 0) - new Date(a.fechaFin || 0); });
         gpsItems.sort(function(a, b) { return new Date(b.fechaFin || b.fechaInicio || 0) - new Date(a.fechaFin || a.fechaInicio || 0); });
 
-        /* Rutas sin iniciar: codigos validos que aun no tienen sesion en la jornada activa */
         var noIniciadas = [];
         var validosOk = false;
         if (validos && typeof validos === 'object') {
           validosOk = true;
           Object.keys(validos).forEach(function(cod) {
-            if (registrosPorCodigo[cod]) return; /* ya tiene sesion en esta jornada */
+            if (registrosPorCodigo[cod]) return;
             var itemsCfg = (formCfg && Array.isArray(formCfg.items))
               ? formCfg.items.filter(function(it) { return String(it.codigo) === String(cod); })
               : [];
@@ -1014,9 +996,6 @@
 
         datosGlobales = { procesos: procesos, completados: completados, gpsItems: gpsItems, totalGps: totalGps, noIniciadas: noIniciadas, validosOk: validosOk };
 
-        /* ★ PATCH O1m — "completados hoy": en una carpeta de fecha TODOS los
-           completados pertenecen a esa jornada; el filtro por dia solo aplica
-           al grupo "Antiguos" (estructura anterior) */
         var esFecha = esJornadaFecha();
         var completadosHoy = esFecha
           ? completados.length
@@ -1051,7 +1030,7 @@
     }
 
     function renderizarVacio() {
-      var h = '<div class="sin-datos"><i class="fa-solid fa-inbox"></i><p>No hay sesiones registradas en esta jornada.</p></div>'; /* ★ PATCH O1m */
+      var h = '<div class="sin-datos"><i class="fa-solid fa-inbox"></i><p>No hay sesiones registradas en esta jornada.</p></div>';
       document.getElementById('listaProceso').innerHTML = h;
       document.getElementById('listaCompletados').innerHTML = h;
       document.getElementById('listaGps').innerHTML = h;
@@ -1097,8 +1076,6 @@
         cont.innerHTML = '<div class="sin-datos"><i class="fa-solid fa-check-circle"></i><p>Todas las rutas validas han iniciado sesion.</p></div>';
         return;
       }
-      /* ★ PATCH O1m — aviso cuando se revisa una jornada pasada: el cruce usa
-         los codigos validos/configuracion ACTUALES, pueden diferir de ese dia */
       var html = '';
       if (esJornadaFecha() && jornadaSeleccionada !== claveDiaLocal()) {
         html += '<div style="font-size:10.5px;color:var(--fg3);margin:0 0 10px;padding:8px 12px;border:1px dashed var(--border);border-radius:8px"><i class="fa-solid fa-clock-rotate-left"></i> Vista historica del ' + esc(diaBonito(jornadaSeleccionada)) + ': el cruce usa los codigos validos y la configuracion vigentes hoy, pueden diferir de los de ese dia.</div>';
@@ -1173,7 +1150,6 @@
           var iCol2 = reg.inactMin < UMB_INACT_OK ? 'var(--success)' : (reg.inactMin < UMB_INACT_ALERTA ? 'var(--warning)' : 'var(--danger)');
           inactHtml = '<span style="font-size:11px;color:' + iCol2 + ';font-weight:600" title="Tiempo desde la ultima captura GPS del dispositivo en esta ruta"><i class="fa-solid fa-hourglass-half"></i> inactivo ' + fmtDur(reg.inactMin) + '</span>';
         }
-        /* Insignia de estado horario de la ruta */
         var st = resumenEstadoItems(reg);
         var badge = '';
         if (st.atr > 0) badge = '<span class="cc-estado atrasada" title="Entregas pendientes cuya hora fin ya paso">' + st.atr + ' atrasada' + (st.atr !== 1 ? 's' : '') + '</span>';
@@ -1181,7 +1157,7 @@
         else if (st.pend > 0) badge = '<span class="cc-estado horario" title="Todas las entregas pendientes dentro de su horario">En horario</span>';
         var rBtn = reg.gpsCount > 0 ? '<button class="cc-ruta-btn" data-accion="ruta" data-codigo="' + esc(reg.codigo) + '"><i class="fa-solid fa-route"></i> Ruta</button>' : '';
         html += '<div class="codigo-card"><div class="cc-header" onclick="toggleCard(this)">'
-          + '<div class="cc-header-left"><span class="cc-codigo">' + esc(reg.codigo) + '</span><span class="cc-estado proceso">En proceso</span>' + badge + '</div>'
+          + '<div class="cc-header-left"><span class="cc-codigo">' + esc(reg.codigo) + '</span><span class="cc-estado proceso">En proceso</span>' + badge + ((reg.rutasHoy > 1) ? '<span class="cc-estado horario" title="El codigo tuvo varias rutas en esta jornada">' + reg.rutasHoy + ' rutas hoy</span>' : '') + '</div>'
           + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' + rBtn
           + '<span class="cc-fecha">' + esc(tI) + '</span>' + iTxt + inactHtml + '</div>'
           + '<i class="fa-solid fa-chevron-down cc-toggle"></i></div><div class="cc-body">'
@@ -1201,7 +1177,7 @@
         var tF = reg.fechaFin ? tiempoRelativo(reg.fechaFin) : '\u2014';
         var rBtn = reg.gpsCount > 0 ? '<button class="cc-ruta-btn" data-accion="ruta" data-codigo="' + esc(reg.codigo) + '"><i class="fa-solid fa-route"></i> Ruta</button>' : '';
         html += '<div class="codigo-card"><div class="cc-header" onclick="toggleCard(this)">'
-          + '<div class="cc-header-left"><span class="cc-codigo">' + esc(reg.codigo) + '</span><span class="cc-estado completado">Completado</span></div>'
+          + '<div class="cc-header-left"><span class="cc-codigo">' + esc(reg.codigo) + '</span><span class="cc-estado completado">Completado</span>' + ((reg.rutasHoy > 1) ? '<span class="cc-estado horario" title="El codigo tuvo varias rutas en esta jornada">' + reg.rutasHoy + ' rutas hoy</span>' : '') + '</div>'
           + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' + rBtn
           + '<span class="cc-fecha">Fin: ' + esc(tF) + '</span>'
           + (reg.gpsCount > 0 ? '<span style="font-size:11px;color:var(--success);font-weight:600"><i class="fa-solid fa-location-dot"></i> ' + reg.gpsCount + ' GPS</span>' : '<span style="font-size:11px;color:var(--fg3)">Sin GPS</span>')
@@ -1240,7 +1216,7 @@
         });
         tHtml += '</tbody></table>';
         html += '<div class="codigo-card"><div class="cc-header" onclick="toggleCard(this)">'
-          + '<div class="cc-header-left"><span class="cc-codigo">' + esc(grupo.codigo) + '</span><span class="cc-estado gps">' + grupo.itemsGps.length + ' GPS</span></div>'
+          + '<div class="cc-header-left"><span class="cc-codigo">' + esc(grupo.codigo) + '</span><span class="cc-estado gps">' + grupo.itemsGps.length + ' GPS</span>' + ((function(){ var r0 = registrosPorCodigo[grupo.codigo]; return (r0 && r0.rutasHoy > 1) ? '<span class="cc-estado horario" title="Varias rutas en esta jornada">' + r0.rutasHoy + ' rutas hoy</span>' : ''; })()) + '</div>'
           + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
           + '<button class="cc-ruta-btn" data-accion="ruta" data-codigo="' + esc(grupo.codigo) + '"><i class="fa-solid fa-route"></i> Ruta</button>'
           + '<span class="cc-fecha">' + esc(tR) + '</span></div>'
@@ -1264,7 +1240,6 @@
       var cI = 0, cF = 0, secs = {};
       if (Array.isArray(items)) items.forEach(function(it) {
         if (it.inicio) cI++;
-        /* Finalizadas = solo entregas con captura GPS del dispositivo */
         if (tieneGpsDispositivo(it)) cF++;
         if (it.sector) secs[it.sector] = (secs[it.sector] || 0) + 1;
       });
@@ -1344,13 +1319,6 @@
 
     /* ====================================================================
        MAPA — NUEVA PESTAÑA
-       - gps origen "dispositivo" = CAPTURADO -> numerado y conectado
-         en orden de fechaCaptura
-       - gpsOriginal (o gps origen "firebase", formato viejo) = PENDIENTE
-         -> morado discontinuo, sin linea, con enlace para ir a capturar
-       - Desviacion: popup coloreado + linea discontinua al punto original
-       - Salto temporal: tramo rojo discontinuo + marcador de alerta
-         cuando la diferencia entre capturas consecutivas > UMB_SALTO_MIN
        ==================================================================== */
 
     function recopilarDatosMapa(soloCodigo) {
@@ -1415,7 +1383,6 @@
 
     function abrirPaginaMapa(transportes, esIndividual) {
       var jsonStr = JSON.stringify(transportes).replace(/<\//g, '<\\/');
-      /* ★ PATCH O1m — el mapa individual/general indica la jornada activa */
       var jorTxt = esJornadaFecha() ? ' \u00b7 Jornada ' + diaBonito(jornadaSeleccionada) : '';
       var titulo = esIndividual ? ('Ruta: ' + transportes[0].codigo) : ('Mapa general de transportes' + jorTxt);
       var subtitulo = esIndividual ? transportes[0].codigo : ('Todos los transportes' + jorTxt);
@@ -1516,7 +1483,6 @@
         + '    var enRuta=t.puntos.filter(function(p){return !p.pendiente});\n'
         + '    var pend=t.puntos.filter(function(p){return p.pendiente});\n'
         + '    enRuta.sort(function(a,b){return hkey(a.hora)-hkey(b.hora)});\n'
-        + '    /* Diferencia temporal (ms) entre capturas consecutivas */\n'
         + '    var gaps=enRuta.map(function(p,i){if(i===0||p.t==null||enRuta[i-1].t==null)return null;return p.t-enRuta[i-1].t});\n'
         + '    var nGaps=0;gaps.forEach(function(x){if(x!=null&&x>G_MAX*60000)nGaps++});nGapG+=nGaps;\n'
         + '    var seq=enRuta.concat(pend);\n'
@@ -1524,7 +1490,7 @@
         + '    seq.forEach(function(p,i){\n'
         + '      var esPen=!!p.pendiente;\n'
         + '      if(esPen)nPenT++;\n'
-        + '      var col=esPen?"#a78bfa":t.color;\n'
+        + '      var col=t.color;\n'
         + '      var num=esPen?"?":(coords.length+1);\n'
         + '      var icon=L.divIcon({className:"mk",html:\'<div class="mk-dot" style="background:\'+col+\';\'+(esPen?\'border-style:dashed;\':\'\')+\'">\'+num+\'</div>\',iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16]});\n'
         + '      var m=L.marker([p.lat,p.lng],{icon:icon});\n'
@@ -1560,7 +1526,6 @@
         + '      if(!esPen)coords.push([p.lat,p.lng]);\n'
         + '      allBounds.push([p.lat,p.lng]);\n'
         + '    });\n'
-        + '    /* Trazado por segmentos: los saltos > G_MAX van en rojo discontinuo con marca */\n'
         + '    for(var si=1;si<enRuta.length;si++){\n'
         + '      var pa=enRuta[si-1],pb=enRuta[si],gMs=gaps[si];\n'
         + '      var esSalto=(gMs!=null&&gMs>G_MAX*60000);\n'
