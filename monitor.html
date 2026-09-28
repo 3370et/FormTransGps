@@ -384,7 +384,48 @@
     /* Persistencia de sesion */
     var SESSION_CLAVE = 'pm_sesion';
     var SESSION_DURACION_MS = 12 * 60 * 60 * 1000;
-
+    /* ===== ★ SEGURIDAD — FIREBASE AUTH (requerida por las reglas de la base) ===== */
+    var FIREBASE_APP_CONFIG = {
+      apiKey: "AIzaSyCrnroA2yd2coEVyn6Jm-q8sM6rvOb6Y3k",
+      authDomain: "datos-formulario-f3cde.firebaseapp.com",
+      databaseURL: "https://datos-formulario-f3cde-default-rtdb.firebaseio.com",
+      projectId: "datos-formulario-f3cde",
+      storageBucket: "datos-formulario-f3cde.firebasestorage.app",
+      messagingSenderId: "1060204671476",
+      appId: "1:1060204671476:web:a476539fa122fd04fa89a1"
+    };
+    var fbAuthToken = null;
+    function conAuth(url) {
+      if (fbAuthToken) return url + (url.indexOf('?') === -1 ? '?' : '&') + 'auth=' + fbAuthToken;
+      return url;
+    }
+    function cargarScriptAsync(src) {
+      return new Promise(function(resolver, rechazar) {
+        var s = document.createElement('script');
+        s.src = src; s.onload = resolver;
+        s.onerror = function() { rechazar(new Error('No se pudo cargar ' + src)); };
+        document.head.appendChild(s);
+      });
+    }
+    async function iniciarFirebaseAuth() {
+      try {
+        var base = 'https://www.gstatic.com/firebasejs/10.12.0/';
+        await cargarScriptAsync(base + 'firebase-app-compat.js');
+        await cargarScriptAsync(base + 'firebase-auth-compat.js');
+        if (!firebase.apps.length) firebase.initializeApp(FIREBASE_APP_CONFIG);
+        firebase.auth().onIdTokenChanged(function(user) {
+          if (user) { user.getIdToken().then(function(t) { fbAuthToken = t; }).catch(function(){}); }
+          else { fbAuthToken = null; }
+        });
+        await firebase.auth().signInAnonymously();
+        var u = firebase.auth().currentUser;
+        if (u) fbAuthToken = await u.getIdToken();
+        setInterval(function() {
+          try { var u2 = firebase.auth().currentUser; if (u2) u2.getIdToken(true).then(function(t) { fbAuthToken = t; }).catch(function(){}); } catch(e) {}
+        }, 45 * 60 * 1000);
+        return true;
+      } catch(e) { console.warn('Auth no disponible:', e && e.message); return false; }
+    }
     /* ===== ESTADO ===== */
     var timerAutoActualizar = null;
     var datosGlobales = { procesos: [], completados: [], gpsItems: [], totalGps: 0, noIniciadas: [], validosOk: false };
@@ -412,7 +453,7 @@
     function esJornadaFecha() { return !!(jornadaSeleccionada && jornadaSeleccionada !== '__legacy__'); }
     async function leerClaves(url, permitirFallback) {
       try {
-        var r = await fetch(url + '.json?shallow=true');
+        var r = await fetch(conAuth(url + '.json?shallow=true'));
         if (r.ok) {
           var j = await r.json();
           if (j === null) return [];
@@ -420,7 +461,7 @@
         }
       } catch (e) {}
       if (!permitirFallback) return null;
-      var r2 = await fetch(url + '.json');
+      var r2 = await fetch(conAuth(url + '.json'));
       if (!r2.ok) throw new Error('HTTP ' + r2.status);
       var j2 = await r2.json();
       return (j2 && typeof j2 === 'object') ? Object.keys(j2) : [];
@@ -590,7 +631,7 @@
     }
 
     async function validarClaveEnFirebase(clave) {
-      var r = await fetch(FIREBASE_URL_SUPER + '/' + encodeURIComponent(clave) + '.json');
+      var r = await fetch(conAuth(FIREBASE_URL_SUPER + '/' + encodeURIComponent(clave) + '.json'));
       if (!r.ok) throw new Error('HTTP ' + r.status);
       var data = await r.json();
       if (data === null) return null;
@@ -899,7 +940,7 @@
         }
 
         var urlLectura = esJornadaFecha() ? FIREBASE_URL + '/' + jornadaSeleccionada : FIREBASE_URL;
-        var r = await fetch(urlLectura + '.json');
+        var r = await fetch(conAuth(urlLectura + '.json'));
         if (!r.ok) throw new Error('HTTP ' + r.status);
         var data = await r.json();
         var sesiones = {};
@@ -918,9 +959,9 @@
 
         var validos = null, formCfg = null;
         try {
-          var rv = await fetch(FIREBASE_URL_VALIDOS + '.json');
+          var rv = await fetch(conAuth(FIREBASE_URL_VALIDOS + '.json'));
           if (rv.ok) validos = await rv.json();
-          var rc = await fetch(FIREBASE_URL_CONFIG + '.json');
+          var rc = await fetch(conAuth(FIREBASE_URL_CONFIG + '.json'));
           if (rc.ok) formCfg = await rc.json();
         } catch (e2) { validos = null; formCfg = null; }
 
@@ -1613,9 +1654,8 @@
       if (!w) mostrarToast('El navegador bloqueo la ventana emergente. Permite las ventanas emergentes para este sitio e intentalo de nuevo.', 'err');
       setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
     }
-
-    /* Restaurar sesion guardada al cargar la pagina */
-    restaurarSesion();
+    /* ★ SEGURIDAD — auth antes de restaurar sesión */
+    iniciarFirebaseAuth().then(function() { restaurarSesion(); });
   </script>
 </body>
 </html>
