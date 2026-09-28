@@ -296,9 +296,9 @@
       <div class="empty-state" id="emptyState"><i class="fa-solid fa-inbox"></i><p>Escribe un código de transporte<br>para ver los datos asignados.</p></div>
     </div>
     <div class="acciones">
-      <!-- ★ PATCH J1 — botón con icono de guardar + frase FIN DE RUTA -->
-      <button class="btn btn-guardar" id="btnGuardar" onclick="ejecutarGuardado()"><i class="fa-solid fa-floppy-disk"></i> FIN DE RUTA</button>
-      <!-- ★ PATCH E2 — enlace a mapa completo (mapa.html externo, pestaña nueva) -->
+      <!-- ★ PATCH J1/R2 — botón FIN DE RUTA: inicia deshabilitado, se habilita solo tras carga exitosa -->
+      <button class="btn btn-guardar" id="btnGuardar" onclick="ejecutarGuardado()" disabled><i class="fa-solid fa-floppy-disk"></i> FIN DE RUTA</button>
+      <!-- ★ PATCH E2/R2 — enlace a mapa completo: inicia deshabilitado, se habilita solo tras carga exitosa -->
       <a class="btn btn-mapa disabled" id="btnMapa" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-map-location-dot"></i> Ver mapa completo</a>
     </div>
     <div id="mensaje"></div>
@@ -1143,6 +1143,32 @@
     }
     function verificarExpiracion(c) { if (!c||!c.expiration) return false; return new Date()>new Date(c.expiration); }
 
+    /* ============================================================
+       ★ PATCH R1 — RECARGA DE CONFIGURACIÓN EN CADA "CARGAR DATOS"
+       formConfig y codigosValidos se releen del servidor en cada
+       carga, así los despachos nuevos del admin aparecen sin F5.
+       Si la recarga falla, se continúa con la última conocida.
+       ============================================================ */
+    async function recargarConfiguracion() {
+      var config = null;
+      try { config = await cargarConfiguracionRemota(); } catch(e) { config = null; }
+      if (!config) return { ok: false, expirado: false, config: null };
+      if (verificarExpiracion(config)) return { ok: true, expirado: true, config: config };
+
+      var raw = config.items && Array.isArray(config.items) ? config.items : [];
+      allItemsConfig = raw.map(function(i) {
+        if (typeof i === 'string') return {name:i,codigo:'',sector:'',ini:'',fin:'',codclnt:'',fecha:'',gpsRegistrado:null};
+        if (i && typeof i === 'object') return {name:i.name||'',codigo:i.codigo||'',sector:i.sector||'',ini:i.ini||'',fin:i.fin||'',codclnt:String(i.CODCLNT || i.codclnt || ''),fecha:String(i.fecha || i.Fecha || ''),gpsRegistrado:extraerGPSDeItem(i)};
+        return {name:'',codigo:'',sector:'',ini:'',fin:'',codclnt:'',fecha:'',gpsRegistrado:null};
+      }).filter(function(i){return i.name !== '';});
+
+      try {
+        var rCV = await fetch(conAuth(FIREBASE_DB_URL_ROOT + '/codigosValidos.json'));
+        if (rCV.ok) codigosValidosMap = (await rCV.json()) || {};
+      } catch(e) { /* se conserva el mapa anterior */ }
+      return { ok: true, expirado: false, config: config };
+    }
+
     async function inicializarApp() {
       if (!verificarDiseno()) { activarBloqueoDiseno(); return; }
       disenoIntacto = true;
@@ -1150,25 +1176,19 @@
       status('Conectando con el servidor...','load');
       await iniciarFirebaseAuth();
       try {
-        var config = await cargarConfiguracionRemota();
-        if (!config) throw new Error('Configuración vacía');
-        if (verificarExpiracion(config)) {
+        var recarga = await recargarConfiguracion(); /* ★ PATCH R1 — carga inicial compartida */
+        if (!recarga.ok) throw new Error('Sin conexión con el servidor');
+        if (recarga.expirado) {
           status('Formulario expirado.','err');
           document.getElementById('mainContent').classList.add('hidden');
           document.getElementById('expiredScreen').classList.remove('hidden');
-          document.getElementById('mensajeExpiracion').textContent = 'Este formulario expiró el ' + new Date(config.expiration).toLocaleString() + '.';
+          document.getElementById('mensajeExpiracion').textContent = 'Este formulario expiró el ' + new Date(recarga.config.expiration).toLocaleString() + '.';
           return;
         }
-        var raw = config.items && Array.isArray(config.items) ? config.items : [];
-        allItemsConfig = raw.map(function(i) {
-          if (typeof i === 'string') return {name:i,codigo:'',sector:'',ini:'',fin:'',codclnt:'',fecha:'',gpsRegistrado:null};
-          if (i && typeof i === 'object') return {name:i.name||'',codigo:i.codigo||'',sector:i.sector||'',ini:i.ini||'',fin:i.fin||'',codclnt:String(i.CODCLNT || i.codclnt || ''),fecha:String(i.fecha || i.Fecha || ''),gpsRegistrado:extraerGPSDeItem(i)};
-          return {name:'',codigo:'',sector:'',ini:'',fin:'',codclnt:'',fecha:'',gpsRegistrado:null};
-        }).filter(function(i){return i.name !== '';});
-        try { var rCV = await fetch(conAuth(FIREBASE_DB_URL_ROOT + '/codigosValidos.json')); codigosValidosMap = (await rCV.json()) || {}; } catch(e) { codigosValidosMap = {}; }
         status('', 'ok');
         document.getElementById('mainContent').classList.remove('hidden');
         document.getElementById('expiredScreen').classList.add('hidden');
+        /* ★ PATCH R2 — botones ya inician deshabilitados desde el HTML */
         limpiarTabla();
 
         var recordado = obtenerSesionRecordada();
@@ -1313,6 +1333,21 @@
       var codigo = input.value.trim();
       if (!codigo) { msg('Escribe un código de transporte.','warn'); input.focus(); return; }
 
+      /* ★ PATCH R1 — recargar configuración para ver despachos nuevos sin F5.
+         En la restauración automática se omite (acaba de cargarse). */
+      if (autoRestaurada !== true) {
+        msg('Actualizando datos del servidor...','info');
+        var recarga = await recargarConfiguracion();
+        if (recarga.expirado) {
+          status('Formulario expirado.','err');
+          document.getElementById('mainContent').classList.add('hidden');
+          document.getElementById('expiredScreen').classList.remove('hidden');
+          document.getElementById('mensajeExpiracion').textContent = 'Este formulario expiró el ' + new Date(recarga.config.expiration).toLocaleString() + '.';
+          return;
+        }
+        if (!recarga.ok) msg('Sin conexión para actualizar datos. Usando la última configuración cargada.', 'warn');
+      }
+
       var itemsFiltrados = allItemsConfig.filter(function(item) { return item.codigo.toLowerCase() === codigo.toLowerCase(); });
       var hayNodoValidos = Object.keys(codigosValidosMap).length > 0;
       var estaEnValidos = true;
@@ -1406,8 +1441,12 @@
 
       guardarSesionEnDispositivo(codigo);
       input.disabled = true; btnCargar.disabled = true;
+      /* ★ PATCH R2 — FIN DE RUTA y Ver mapa visibles solo con datos cargados */
+      document.getElementById('btnGuardar').disabled = true;
       fechaInicioSesion = esContinuacion ? (resultado.fechaInicio || new Date().toISOString()) : new Date().toISOString();
       poblarTabla(itemsSesion, datosPrevios);
+      /* ★ PATCH R2 — habilitar solo tras carga exitosa y tabla poblada */
+      document.getElementById('btnGuardar').disabled = false;
       if (!esContinuacion) guardarEstadoActualEnFirebase();
       iniciarTimerInactividad();
     }
@@ -1492,7 +1531,8 @@
       document.querySelector('.code-section').classList.remove('hidden');
       input.value = ''; input.disabled = false;
       document.getElementById('btnCargar').disabled = false;
-      document.getElementById('btnGuardar').disabled = false;
+      /* ★ PATCH R2 — botones vuelven a estado deshabilitado (sin datos cargados) */
+      document.getElementById('btnGuardar').disabled = true;
       document.getElementById('btnGuardar').classList.remove('guardando');
       var bm = document.getElementById('btnMapa');
       bm.removeAttribute('href'); bm.classList.add('disabled');
