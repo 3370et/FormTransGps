@@ -1614,7 +1614,7 @@
         + '    groups[t.codigo]=g;\n'
         + '    var enRuta=t.puntos.filter(function(p){return !p.pendiente});\n'
         + '    var pend=t.puntos.filter(function(p){return p.pendiente});\n'
-        + '    enRuta.sort(function(a,b){return hkey(a.hora)-hkey(b.hora)});\n'
+        + '    enRuta.sort(function(a,b){var ka=(a.t!=null)?a.t:hkey(a.hora),kb=(b.t!=null)?b.t:hkey(b.hora);return ka-kb});\n'
         + '    var gaps=enRuta.map(function(p,i){if(i===0||p.t==null||enRuta[i-1].t==null)return null;return p.t-enRuta[i-1].t});\n'
         + '    var nGaps=0;gaps.forEach(function(x){if(x!=null&&x>G_MAX*60000)nGaps++});nGapG+=nGaps;\n'
         + '    var seq=enRuta.concat(pend);\n'
