@@ -145,7 +145,7 @@
       /* ★ Marcador de cliente SIN coordenada de origen: anillo punteado
        alrededor del punto, mismo color de la ruta */
     .mk-sin-origen{position:relative}
-    .mk-sin-origen::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px dashed rgba(255,255,255,.75);animation:sinOrigenGiro 8s linear infinite}
+    .mk-sin-origen::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2.5px dashed #0f1117;animation:sinOrigenGiro 8s linear infinite}
     @keyframes sinOrigenGiro{to{transform:rotate(360deg)}}
     @media (prefers-reduced-motion:reduce){.mk-sin-origen::after{animation:none}}
 
