@@ -1559,10 +1559,9 @@
         + '.mk-dot.hl{transform:scale(1.3);box-shadow:0 0 0 4px rgba(255,255,255,.25),0 4px 14px rgba(0,0,0,.5)}\n'
         /* ★ P-11: marcador vistoso "primera captura sin origen": halo radar
            pulsante + anillo punteado giratorio + glow dorado */
-        + '.mk-sin-origen{position:relative}\n'
-        + '.mk-sin-origen::before{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid #ffd166;animation:sinOrigenPing 1.5s ease-out infinite}\n'
-        + '.mk-sin-origen::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2.5px dashed #ffd166;animation:sinOrigenGiro 9s linear infinite}\n'
-        + '.mk-sin-origen .mk-dot{border-color:#ffd166;box-shadow:0 0 0 3px rgba(255,209,102,.35),0 0 16px 5px rgba(255,209,102,.45)}\n'
+        + '.mk-sin-origen .mk-dot{position:relative;border-color:#ffd166;box-shadow:0 0 0 3px rgba(255,209,102,.35),0 0 16px 5px rgba(255,209,102,.45)}\n'
+        + '.mk-sin-origen .mk-dot::before{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid #ffd166;animation:sinOrigenPing 1.5s ease-out infinite;pointer-events:none}\n'
+        + '.mk-sin-origen .mk-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2.5px dashed #ffd166;animation:sinOrigenGiro 9s linear infinite;pointer-events:none}\n'
         + '@keyframes sinOrigenPing{0%{transform:scale(1);opacity:.85}70%,100%{transform:scale(2.1);opacity:0}}\n'
         + '@keyframes sinOrigenGiro{to{transform:rotate(360deg)}}\n'
         + '@media (prefers-reduced-motion:reduce){.mk-sin-origen::before,.mk-sin-origen::after{animation:none}}\n'
