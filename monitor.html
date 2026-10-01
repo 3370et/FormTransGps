@@ -142,6 +142,12 @@
     .cc-ruta-btn-lg i{font-size:16px}
     .cc-ruta-btn-lg.gmaps{border-color:rgba(96,165,250,.25);background:rgba(96,165,250,.06);color:var(--info)}
     .cc-ruta-btn-lg.gmaps:hover{background:rgba(96,165,250,.14);border-color:var(--info);box-shadow:0 4px 16px rgba(96,165,250,.15)}
+      /* ★ Marcador de cliente SIN coordenada de origen: anillo punteado
+       alrededor del punto, mismo color de la ruta */
+    .mk-sin-origen{position:relative}
+    .mk-sin-origen::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px dashed rgba(255,255,255,.75);animation:sinOrigenGiro 8s linear infinite}
+    @keyframes sinOrigenGiro{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion:reduce){.mk-sin-origen::after{animation:none}}
 
     .sin-datos{text-align:center;padding:40px 20px;color:var(--fg3);background:var(--card);border:1px solid var(--border);border-radius:12px}
     .sin-datos i{font-size:32px;opacity:.2;display:block;margin-bottom:12px}
@@ -1388,7 +1394,8 @@
               precision: capt.accuracy ? Math.round(capt.accuracy) + 'm' : '',
               dist: dist,
               latO: lo ? lo.lat : null, lngO: lo ? lo.lng : null,
-              pendiente: false
+              pendiente: false,
+              sinOrigen: !lo /* ★ punto sin coordenada de origen en formConfig */
             });
           } else if (orig && orig.lat != null && orig.lng != null) {
             var la2 = parseFloat(orig.lat), ln2 = parseFloat(orig.lng);
@@ -1533,7 +1540,8 @@
         + '      if(esPen)nPenT++;\n'
         + '      var col=t.color;\n'
         + '      var num=esPen?"?":(coords.length+1);\n'
-        + '      var icon=L.divIcon({className:"mk",html:\'<div class="mk-dot" style="background:\'+col+\';\'+(esPen?\'border-style:dashed;\':\'\')+\'">\'+num+\'</div>\',iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16]});\n'
+        + '      var clsExtra=p.sinOrigen?" mk-sin-origen":"";\n'
+        + '      var icon=L.divIcon({className:"mk"+clsExtra,html:\'<div class="mk-dot" style="background:\'+col+\';\'+(esPen?\'border-style:dashed;\':\'\')+\'">\'+num+\'</div>\',iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16]});\n'
         + '      var m=L.marker([p.lat,p.lng],{icon:icon});\n'
         + '      var ph=\'<div class="pp">\';\n'
         + '      ph+=\'<div class="pp-num">\'+(esPen?\'Pendiente de captura\':\'Punto \'+num)+\' &middot; \'+esc(t.codigo)+\'</div>\';\n'
@@ -1549,6 +1557,7 @@
         + '          ph+=\'<div class="pp-row"><i class="fa-solid fa-triangle-exclamation" style="color:#f87171"></i><span style="color:#f87171;font-weight:700">Salto de \'+fmtDur(Math.round(gaps[gIdx]/60000))+\' desde el punto anterior</span></div>\';\n'
         + '        }\n'
         + '        if(p.precision)ph+=\'<div class="pp-row"><i class="fa-solid fa-crosshairs"></i>Precision: \'+esc(p.precision)+\'</div>\';\n'
+        + '        if(p.sinOrigen){ph+=\'<div class="pp-row"><i class="fa-solid fa-circle-notch" style="color:#e8913a"></i><span style="color:#e8913a;font-weight:700">Primera captura: sin coordenada de origen</span></div>\';}\n'
         + '        if(p.dist!==""&&p.dist!=null){\n'
         + '          var sv=p.dist<U_OK?"#34d399":(p.dist<U_AL?"#fbbf24":"#f87171");\n'
         + '          var svT=p.dist<U_OK?"Alineado":(p.dist<U_AL?"Desviacion moderada":"DESVIACION ALTA");\n'
