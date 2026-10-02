@@ -114,6 +114,26 @@
     .cc-fecha{font-size:11px;color:var(--fg3);white-space:nowrap}
     .cc-ruta-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;border:1px solid rgba(232,145,58,.25);background:rgba(232,145,58,.08);color:var(--accent);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap}
     .cc-ruta-btn:hover{background:rgba(232,145,58,.18);border-color:var(--accent)}
+    /* ===== ★ PATCH S1 — cierre manual de ruta (supervisor) ===== */
+    .cc-ruta-btn.cerrar{border-color:rgba(52,211,153,.25);background:rgba(52,211,153,.08);color:var(--success)}
+    .cc-ruta-btn.cerrar:hover{background:rgba(52,211,153,.18);border-color:var(--success)}
+    .cr-input{width:100%;background:var(--bg);border:1.5px solid var(--border);color:var(--fg);border-radius:10px;padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:all .25s;color-scheme:dark}
+    .cr-input:focus{border-color:var(--success);box-shadow:0 0 0 3px rgba(52,211,153,.12)}
+    .cr-msg{margin-top:12px;padding:10px 12px;border-radius:8px;font-size:12px;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.15);color:var(--danger);display:none}
+    .cr-msg.visible{display:block}
+    .modal-btn.confirmar{background:var(--success);color:#0f1117}
+    .modal-btn.confirmar:hover{background:#4ce0a9;box-shadow:0 4px 16px rgba(52,211,153,.3)}
+    .modal-btn.confirmar:disabled{opacity:.65;cursor:wait}
+    /* ===== ★ PATCH S3 — reapertura manual de ruta (supervisor) ===== */
+    .cc-ruta-btn.reabrir{border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.08);color:var(--warning)}
+    .cc-ruta-btn.reabrir:hover{background:rgba(251,191,36,.18);border-color:var(--warning)}
+    .rr-lista{margin:14px 0 4px;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+    .rr-lista li{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--fg2);line-height:1.5}
+    .rr-lista li i{margin-top:2px;flex-shrink:0}
+    .rr-aviso{margin-top:14px;padding:10px 12px;border-radius:8px;font-size:11.5px;line-height:1.5;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);color:var(--warning)}
+    .modal-btn.reabrir-ok{background:var(--warning);color:#0f1117}
+    .modal-btn.reabrir-ok:hover{background:#fcd34d;box-shadow:0 4px 16px rgba(251,191,36,.3)}
+    .modal-btn.reabrir-ok:disabled{opacity:.65;cursor:wait}
     .cc-toggle{background:none;border:none;color:var(--fg3);font-size:14px;cursor:pointer;padding:4px;transition:transform .2s;flex-shrink:0}
     .cc-toggle:hover{color:var(--fg)}
     .cc-body{display:none;padding:0 16px 16px}
@@ -275,6 +295,57 @@
     </div>
   </div>
 
+  <!-- ★ PATCH S1 — modal de cierre manual de ruta -->
+  <div class="modal-overlay" id="modalCerrarRuta">
+    <div class="modal-box" style="max-width:430px">
+      <div class="modal-head">
+        <h2><i class="fa-solid fa-flag-checkered" style="color:var(--success)"></i> Completar ruta manualmente</h2>
+        <button class="modal-close" onclick="cancelarCerrarRuta()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding:20px 24px">
+        <p style="font-size:13px;color:var(--fg2);line-height:1.55;margin-bottom:16px">
+          Se marcara como <b style="color:var(--success)">completada</b> la ruta del codigo
+          <b id="crCodigoTxt" style="color:var(--accent)"></b> con la fecha y hora de fin que indiques.
+          Usala solo cuando el transportista no cerro su sesion.
+        </p>
+        <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fg3);display:block;margin-bottom:6px">Fecha y hora de fin de ruta</label>
+        <input type="datetime-local" id="crFechaFin" class="cr-input">
+        <div class="cr-msg" id="crMsg"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="modal-btn confirmar" id="crBtnOk" onclick="confirmarCerrarRuta()"><i class="fa-solid fa-check"></i> Marcar completada</button>
+        <button class="modal-btn cerrar-modal" onclick="cancelarCerrarRuta()"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ★ PATCH S3 — modal de reapertura de ruta -->
+  <div class="modal-overlay" id="modalReabrirRuta">
+    <div class="modal-box" style="max-width:430px">
+      <div class="modal-head">
+        <h2><i class="fa-solid fa-arrow-rotate-left" style="color:var(--warning)"></i> Reabrir ruta</h2>
+        <button class="modal-close" onclick="cancelarReabrirRuta()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding:20px 24px">
+        <p style="font-size:13px;color:var(--fg2);line-height:1.55;margin-bottom:4px">
+          Se reabrira la ruta del codigo <b id="rrCodigoTxt" style="color:var(--accent)"></b>:
+        </p>
+        <ul class="rr-lista">
+          <li><i class="fa-solid fa-circle-info" style="color:var(--info)"></i><span>El estado volvera a <b style="color:var(--info)">en_proceso</b>.</span></li>
+          <li><i class="fa-solid fa-eraser" style="color:var(--fg3)"></i><span>Se eliminara la <b>fecha de fin</b> registrada (donde este guardada).</span></li>
+          <li><i class="fa-solid fa-mobile-screen" style="color:var(--fg3)"></i><span>Se eliminara el <b>dispositivoId</b>: cualquier dispositivo podra retomar esta ruta con el mismo codigo.</span></li>
+          <li><i class="fa-solid fa-box-archive" style="color:var(--success)"></i><span>Las entregas ya registradas (con su GPS) se conservan intactas.</span></li>
+        </ul>
+        <div class="rr-aviso"><i class="fa-solid fa-triangle-exclamation"></i> Usalo cuando se cerro la ruta por error (clic en fin de ruta accidental) o cuando las entregas deben retomarse o continuarse.</div>
+        <div class="cr-msg" id="rrMsg"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="modal-btn reabrir-ok" id="rrBtnOk" onclick="confirmarReabrirRuta()"><i class="fa-solid fa-arrow-rotate-left"></i> Reabrir ruta</button>
+        <button class="modal-btn cerrar-modal" onclick="cancelarReabrirRuta()"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="dashboard" id="dashboard">
     <div class="dash-header">
       <h1>
@@ -361,6 +432,18 @@
   <div class="toast" id="toast"><i class="fa-solid fa-circle-check ok"></i><span id="toastMsg"></span></div>
 
   <script>
+    /* ★ PATCHES INTEGRADOS:
+       S1 — Boton "Completar" en rutas en proceso: cierre manual por el
+            supervisor (modal de fecha/hora + escritura a Firebase).
+       S2 — Lectura tolerante: datosFormulario como array u objeto,
+            fechaFin dentro de datosFormulario, superUsuarios con true.
+       S3 — Boton "Reabrir" en rutas completadas: estado en_proceso,
+            elimina fechaFin (donde este) y dispositivoId para que
+            cualquier dispositivo retome la ruta; refresca
+            ultimaActividad para que la app no la trate como liberada.
+       S4 — Visibilidad: badges "Reabierta" / "Manual" y dispositivo
+            vigente en el title de los badges de estado. */
+
     /* ===== CONSTANTES ===== */
     var FIREBASE_BASE = 'https://datos-formulario-f3cde-default-rtdb.firebaseio.com';
     var FIREBASE_URL = FIREBASE_BASE + '/codigosUsados';
@@ -558,6 +641,23 @@
       return !!(it && it.gps && it.gps.origen === 'dispositivo'
         && numLimpio(it.gps.lat) != null && numLimpio(it.gps.lng) != null);
     }
+    /* ★ PATCH S2 — datosFormulario puede llegar como OBJETO (claves "0","1",...
+       + "fechaFin") cuando la app completa la ruta: Firebase deja de
+       devolverlo como array. Extrae solo las claves numericas, en orden. */
+    function extraerItemsDF(df) {
+      if (Array.isArray(df)) return df.slice();
+      if (df && typeof df === 'object') {
+        var out = [];
+        Object.keys(df).filter(function(k) { return /^\d+$/.test(k); })
+          .sort(function(a, b) { return (+a) - (+b); })
+          .forEach(function(k) {
+            var v = df[k];
+            if (v && typeof v === 'object') out.push(v);
+          });
+        return out;
+      }
+      return [];
+    }
     /* P-09a: valida rangos de hora (rechaza 99:99) */
     function minutosHora(h) {
       if (!h || typeof h !== 'string' || !/^\d{1,2}:\d{2}/.test(h)) return null;
@@ -641,7 +741,10 @@
       if (!b) return;
       e.stopPropagation();
       var cod = b.getAttribute('data-codigo');
-      if (b.getAttribute('data-accion') === 'gmaps') abrirGoogleMapsRuta(cod);
+      var acc = b.getAttribute('data-accion');
+      if (acc === 'gmaps') abrirGoogleMapsRuta(cod);
+      else if (acc === 'cerrar') abrirCerrarRuta(cod);     /* ★ PATCH S1 */
+      else if (acc === 'reabrir') abrirReabrirRuta(cod);   /* ★ PATCH S3 */
       else verRutaEnMapa(cod);
     }, true);
 
@@ -699,12 +802,17 @@
       }
     }
 
+    /* ★ PATCH S2 — admite {clave:true}, {clave:"Nombre"} y {clave:{nombre}}
+       sin devolver nunca la clave como nombre de usuario */
     async function validarClaveEnFirebase(clave) {
       var r = await fetch(conAuth(FIREBASE_URL_SUPER + '/' + encodeURIComponent(clave) + '.json'));
       if (!r.ok) throw new Error('HTTP ' + r.status);
       var data = await r.json();
-      if (data === null) return null;
-      return (data && typeof data === 'object' && data.nombre) ? data.nombre : clave;
+      if (data === null || data === false || data === 0 || data === '') return null;      /* clave inexistente */
+      if (data === true) return 'Supervisor';                                             /* {clave: true} */
+      if (typeof data === 'string' && data.trim()) return data.trim();                    /* {clave: "Nombre"} */
+      if (typeof data === 'object' && typeof data.nombre === 'string' && data.nombre.trim()) return data.nombre.trim();
+      return null;                                                                        /* cualquier otro valor */
     }
 
     function entrar(nombre, clave, esRestauracion) {
@@ -865,8 +973,159 @@
     }
 
     function cerrarCompartir() { document.getElementById('modalCompartir').classList.remove('visible'); }
-    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') cerrarCompartir(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { cerrarCompartir(); cancelarCerrarRuta(); cancelarReabrirRuta(); } });
     document.getElementById('modalCompartir').addEventListener('click', function(e) { if (e.target === this) cerrarCompartir(); });
+
+    /* ===== ★ PATCH S1 — CIERRE MANUAL DE RUTA (supervisor) ===== */
+    var crPendiente = null;
+    var crEnviando = false;
+
+    function abrirCerrarRuta(codigo) {
+      if (crEnviando) return;
+      crPendiente = codigo;
+      document.getElementById('crCodigoTxt').textContent = codigo;
+      var inp = document.getElementById('crFechaFin');
+      function p2(n) { return String(n).padStart(2, '0'); }
+      var d = new Date();
+      inp.value = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+      var m = document.getElementById('crMsg');
+      m.classList.remove('visible'); m.textContent = '';
+      document.getElementById('modalCerrarRuta').classList.add('visible');
+      setTimeout(function() { inp.focus(); }, 150);
+    }
+
+    function cancelarCerrarRuta() {
+      if (crEnviando) return;
+      crPendiente = null;
+      document.getElementById('modalCerrarRuta').classList.remove('visible');
+    }
+
+    async function confirmarCerrarRuta() {
+      if (!crPendiente || crEnviando) return;
+      var inp = document.getElementById('crFechaFin');
+      var msg = document.getElementById('crMsg');
+      var t = inp.value ? new Date(inp.value).getTime() : NaN;
+      if (isNaN(t)) {
+        msg.textContent = 'Ingresa una fecha y hora validas.';
+        msg.classList.add('visible');
+        return;
+      }
+      if (t > Date.now() + 5 * 60 * 1000) {
+        msg.textContent = 'La fecha y hora de fin no puede estar en el futuro.';
+        msg.classList.add('visible');
+        return;
+      }
+      var btn = document.getElementById('crBtnOk');
+      var codigo = crPendiente;
+      crEnviando = true;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Guardando...';
+      try {
+        var urlBase = esJornadaFecha() ? FIREBASE_URL + '/' + jornadaSeleccionada : FIREBASE_URL;
+        var r = await fetch(conAuth(urlBase + '/' + encodeURIComponent(codigo) + '.json'), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            estado: 'completado',
+            fechaFin: new Date(t).toISOString(),
+            ultimaActividad: new Date().toISOString(),   /* S3-amend: coherente con la app */
+            cerradoManual: true,                         /* S4: badge "Manual" en completados */
+            cerradoPor: usuarioActual || 'supervisor',
+            reabiertoManual: null                         /* S3-amend: limpia flag cruzado */
+          })
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        crPendiente = null;
+        document.getElementById('modalCerrarRuta').classList.remove('visible');
+        mostrarToast('Ruta ' + esc(codigo) + ' marcada como completada', 'ok');
+        ultimaFirmaDatos = null; /* fuerza re-render inmediato */
+        cargarDatos();
+      } catch (e) {
+        msg.textContent = 'No se pudo actualizar la ruta: ' + esc(e && e.message ? e.message : 'error de conexion');
+        msg.classList.add('visible');
+      } finally {
+        crEnviando = false;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Marcar completada';
+      }
+    }
+
+    document.getElementById('modalCerrarRuta').addEventListener('click', function(e) { if (e.target === this) cancelarCerrarRuta(); });
+
+    /* ===== ★ PATCH S3 — REAPERTURA MANUAL DE RUTA (supervisor) ===== */
+    var rrPendiente = null;
+    var rrEnviando = false;
+
+    function abrirReabrirRuta(codigo) {
+      if (rrEnviando) return;
+      rrPendiente = codigo;
+      document.getElementById('rrCodigoTxt').textContent = codigo;
+      var m = document.getElementById('rrMsg');
+      m.classList.remove('visible'); m.textContent = '';
+      document.getElementById('modalReabrirRuta').classList.add('visible');
+    }
+
+    function cancelarReabrirRuta() {
+      if (rrEnviando) return;
+      rrPendiente = null;
+      document.getElementById('modalReabrirRuta').classList.remove('visible');
+    }
+
+    async function confirmarReabrirRuta() {
+      if (!rrPendiente || rrEnviando) return;
+      var msg = document.getElementById('rrMsg');
+      var btn = document.getElementById('rrBtnOk');
+      var codigo = rrPendiente;
+      rrEnviando = true;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Reabriendo...';
+      try {
+        var urlBase = esJornadaFecha() ? FIREBASE_URL + '/' + jornadaSeleccionada : FIREBASE_URL;
+        var urlCod = urlBase + '/' + encodeURIComponent(codigo);
+        /* En PATCH, valor null = eliminar la clave.
+           1) Nivel superior: estado + fechaFin (si el cierre lo hizo el panel)
+              + dispositivoId (libera la ruta) + refresco de ultimaActividad
+              (evita que la app trate la ruta como liberada por 4h de
+              inactividad en verificarSiCodigoFueUsado).
+           2) Dentro de datosFormulario: fechaFin (donde la escribe la app);
+              si no existe ahi, es un no-op inofensivo. */
+        var p1 = fetch(conAuth(urlCod + '.json'), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            estado: 'en_proceso',
+            fechaFin: null,
+            dispositivoId: null,
+            ultimaActividad: new Date().toISOString(),
+            reabiertoManual: true,                      /* S4: badge "Reabierta" en procesos */
+            reabiertoPor: usuarioActual || 'supervisor',
+            cerradoManual: null                         /* S3-amend: limpia flag cruzado */
+          })
+        });
+        var p2 = fetch(conAuth(urlCod + '/datosFormulario.json'), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fechaFin: null })
+        });
+        var rs = await Promise.all([p1, p2]);
+        if (!rs[0].ok) throw new Error('HTTP ' + rs[0].status);
+        if (!rs[1].ok) throw new Error('HTTP ' + rs[1].status);
+        rrPendiente = null;
+        document.getElementById('modalReabrirRuta').classList.remove('visible');
+        mostrarToast('Ruta ' + esc(codigo) + ' reabierta (en proceso)', 'ok');
+        ultimaFirmaDatos = null; /* fuerza re-render inmediato */
+        cargarDatos();
+      } catch (e) {
+        msg.textContent = 'No se pudo reabrir la ruta: ' + esc(e && e.message ? e.message : 'error de conexion');
+        msg.classList.add('visible');
+      } finally {
+        rrEnviando = false;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-arrow-rotate-left"></i> Reabrir ruta';
+      }
+    }
+
+    document.getElementById('modalReabrirRuta').addEventListener('click', function(e) { if (e.target === this) cancelarReabrirRuta(); });
 
     function generarTextoPlano() {
       var datos = obtenerTodosLosDatos();
@@ -1027,16 +1286,23 @@
         Object.keys(sesiones).forEach(function(codigo) {
           var entry = sesiones[codigo];
           if (!entry || typeof entry !== 'object') return;
-          /* ★ PATCH Q1 — fusionar la ruta ACTUAL (datosFormulario) con las
-             archivadas (rutas[]) para ver TODAS las entregas del codigo en
-             la jornada. La actual va primero; las anteriores despues. */
-          var items = Array.isArray(entry.datosFormulario) ? entry.datosFormulario.slice() : [];
+          /* ★ PATCH S2 — tolera la variante "completada" si llegara a existir */
+          var estadoNorm = entry.estado || 'desconocido';
+          if (estadoNorm === 'completada') estadoNorm = 'completado';
+          /* ★ PATCH S2 — fechaFin tambien puede vivir dentro de datosFormulario
+             (asi la escribe la app al completar) */
+          var fechaFinRuta = entry.fechaFin
+            || ((entry.datosFormulario && typeof entry.datosFormulario === 'object' && !Array.isArray(entry.datosFormulario)) ? entry.datosFormulario.fechaFin : null)
+            || null;
+          /* ★ PATCH Q1 + S2 — items: acepta array u objeto con claves numericas */
+          var items = extraerItemsDF(entry.datosFormulario);
           var nRutasHoy = 1;
           if (Array.isArray(entry.rutas)) {
             entry.rutas.forEach(function(h) {
-              if (h && Array.isArray(h.datosFormulario) && h.datosFormulario.length) {
+              var itsH = extraerItemsDF(h && h.datosFormulario);
+              if (itsH.length) {
                 nRutasHoy++;
-                h.datosFormulario.forEach(function(it) { items.push(it); });
+                itsH.forEach(function(it) { items.push(it); });
               }
             });
           }
@@ -1050,20 +1316,23 @@
               }
               if (item.gps && numLimpio(item.gps.lat) != null && numLimpio(item.gps.lng) != null) {
                 gpsCount++;
-                gpsItems.push({ codigo: codigo, fechaFin: entry.fechaFin || null, fechaInicio: entry.fechaInicio || null, estado: entry.estado || 'desconocido', item: item });
+                gpsItems.push({ codigo: codigo, fechaFin: fechaFinRuta, fechaInicio: entry.fechaInicio || null, estado: estadoNorm, item: item });
               }
             });
           }
           /* P-05a: inactividad a prueba de fechas invalidas (nunca NaN) */
           var inactMin = null;
-          if (entry.estado === 'en_proceso') {
+          if (estadoNorm === 'en_proceso') {
             var refMs = ultCapMs || tstamp(entry.fechaInicio) || Date.now();
             inactMin = isFinite(refMs) ? Math.max(0, Math.floor((Date.now() - refMs) / 60000)) : null;
           }
-          var registro = { codigo: codigo, estado: entry.estado || 'desconocido', fechaInicio: entry.fechaInicio || null, fechaFin: entry.fechaFin || null, items: items, gpsCount: gpsCount, inactMin: inactMin, rutasHoy: nRutasHoy };
+          var registro = { codigo: codigo, estado: estadoNorm, fechaInicio: entry.fechaInicio || null, fechaFin: fechaFinRuta, items: items, gpsCount: gpsCount, inactMin: inactMin, rutasHoy: nRutasHoy,
+            dispositivoId: entry.dispositivoId || null,        /* ★ PATCH S4 */
+            reabierta: entry.reabiertoManual === true,         /* ★ PATCH S4 */
+            cerradaManual: entry.cerradoManual === true };    /* ★ PATCH S4 */
           registrosPorCodigo[codigo] = registro;
-          if (entry.estado === 'en_proceso') procesos.push(registro);
-          else if (entry.estado === 'completado') { completados.push(registro); totalGps += gpsCount; }
+          if (estadoNorm === 'en_proceso') procesos.push(registro);
+          else if (estadoNorm === 'completado') { completados.push(registro); totalGps += gpsCount; }
         });
 
         procesos.sort(function(a, b) { return new Date(b.fechaInicio || 0) - new Date(a.fechaInicio || 0); });
@@ -1263,10 +1532,16 @@
         if (st.atr > 0) badge = '<span class="cc-estado atrasada" title="Entregas pendientes cuya hora fin ya paso">' + st.atr + ' atrasada' + (st.atr !== 1 ? 's' : '') + '</span>';
         else if (st.pv > 0) badge = '<span class="cc-estado porvencer" title="Entregas pendientes cuya hora fin esta por vencer">' + st.pv + ' por vencer</span>';
         else if (st.pend > 0) badge = '<span class="cc-estado horario" title="Todas las entregas pendientes dentro de su horario">En horario</span>';
+        /* ★ PATCH S4 — badge de reapertura supervisada */
+        if (reg.reabierta) badge += '<span class="cc-estado porvencer" title="Ruta reabierta por el supervisor: pendiente de que un dispositivo la retome"><i class="fa-solid fa-arrow-rotate-left"></i> Reabierta</span>';
         var rBtn = reg.gpsCount > 0 ? '<button class="cc-ruta-btn" data-accion="ruta" data-codigo="' + esc(reg.codigo) + '"><i class="fa-solid fa-route"></i> Ruta</button>' : '';
+        /* ★ PATCH S1 — boton de cierre manual para el supervisor */
+        var cerrarBtn = '<button class="cc-ruta-btn cerrar" data-accion="cerrar" data-codigo="' + esc(reg.codigo) + '" title="Marcar la ruta como completada con fecha y hora de fin manuales"><i class="fa-solid fa-flag-checkered"></i> Completar</button>';
+        /* ★ PATCH S4 — dispositivo vigente visible en el title del estado */
+        var estTitle = reg.dispositivoId ? 'Dispositivo vigente: ' + esc(String(reg.dispositivoId)) : 'Sin dispositivo reclamado';
         html += '<div class="codigo-card"><div class="cc-header" onclick="toggleCard(this)">'
-          + '<div class="cc-header-left"><span class="cc-codigo">' + esc(reg.codigo) + '</span><span class="cc-estado proceso">En proceso</span>' + badge + ((reg.rutasHoy > 1) ? '<span class="cc-estado horario" title="El codigo tuvo varias rutas en esta jornada">' + reg.rutasHoy + ' rutas hoy</span>' : '') + '</div>'
-          + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' + rBtn
+          + '<div class="cc-header-left"><span class="cc-codigo">' + esc(reg.codigo) + '</span><span class="cc-estado proceso" title="' + estTitle + '">En proceso</span>' + badge + ((reg.rutasHoy > 1) ? '<span class="cc-estado horario" title="El codigo tuvo varias rutas en esta jornada">' + reg.rutasHoy + ' rutas hoy</span>' : '') + '</div>'
+          + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' + cerrarBtn + rBtn
           + '<span class="cc-fecha">' + esc(tI) + '</span>' + iTxt + inactHtml + '</div>'
           + '<i class="fa-solid fa-chevron-down cc-toggle"></i></div><div class="cc-body">'
           + construirResumenInline(reg, 'proceso') + renderTablaItems(reg, 'proceso')
@@ -1284,9 +1559,14 @@
       lista.forEach(function(reg) {
         var tF = reg.fechaFin ? tiempoRelativo(reg.fechaFin) : '\u2014';
         var rBtn = reg.gpsCount > 0 ? '<button class="cc-ruta-btn" data-accion="ruta" data-codigo="' + esc(reg.codigo) + '"><i class="fa-solid fa-route"></i> Ruta</button>' : '';
+        /* ★ PATCH S3 — boton de reapertura para el supervisor */
+        var reabrirBtn = '<button class="cc-ruta-btn reabrir" data-accion="reabrir" data-codigo="' + esc(reg.codigo) + '" title="Reabrir la ruta: volver a en_proceso, quitar la fecha de fin y liberar el dispositivo"><i class="fa-solid fa-arrow-rotate-left"></i> Reabrir</button>';
+        /* ★ PATCH S4 — badge de cierre manual + dispositivo en el title */
+        var manualBadge = reg.cerradaManual ? '<span class="cc-estado porvencer" title="Cierre manual hecho desde este panel">Manual</span>' : '';
+        var estTitle = reg.dispositivoId ? 'Dispositivo que cerro la ruta: ' + esc(String(reg.dispositivoId)) : 'Ruta completada sin dispositivo registrado';
         html += '<div class="codigo-card"><div class="cc-header" onclick="toggleCard(this)">'
-          + '<div class="cc-header-left"><span class="cc-codigo">' + esc(reg.codigo) + '</span><span class="cc-estado completado">Completado</span>' + ((reg.rutasHoy > 1) ? '<span class="cc-estado horario" title="El codigo tuvo varias rutas en esta jornada">' + reg.rutasHoy + ' rutas hoy</span>' : '') + '</div>'
-          + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' + rBtn
+          + '<div class="cc-header-left"><span class="cc-codigo">' + esc(reg.codigo) + '</span><span class="cc-estado completado" title="' + estTitle + '">Completado</span>' + manualBadge + ((reg.rutasHoy > 1) ? '<span class="cc-estado horario" title="El codigo tuvo varias rutas en esta jornada">' + reg.rutasHoy + ' rutas hoy</span>' : '') + '</div>'
+          + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' + reabrirBtn + rBtn
           + '<span class="cc-fecha">Fin: ' + esc(tF) + '</span>'
           + (reg.gpsCount > 0 ? '<span style="font-size:11px;color:var(--success);font-weight:600"><i class="fa-solid fa-location-dot"></i> ' + reg.gpsCount + ' GPS</span>' : '<span style="font-size:11px;color:var(--fg3)">Sin GPS</span>')
           + '</div><i class="fa-solid fa-chevron-down cc-toggle"></i></div><div class="cc-body">'
