@@ -27,12 +27,13 @@
     .sb-stat.s-pr{background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.2)}
     .sb-stat.s-pn{background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.2)}
     .sb-stat.s-gap{background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25)}
-    /* ★ P-11: stat dorada para puntos sin origen */
     .sb-stat.s-so{background:rgba(255,209,102,.1);color:#ffd166;border:1px solid rgba(255,209,102,.25)}
-    /* ★ Banner de frescura de datos */
     .frescura{display:none;margin-top:8px;font-size:10.5px;font-weight:700;color:#fbbf24;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:6px 10px;align-items:center;gap:6px}
-    .sb-btn-fit{width:100%;margin-top:10px;padding:8px;border-radius:8px;border:1px solid #22273a;background:#14171f;color:#8891a8;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+    /* ★ dos botones: ajustar vista + etiquetas de sector */
+    .sb-btns{display:flex;gap:6px;margin-top:10px}
+    .sb-btn-fit{flex:1;padding:8px;border-radius:8px;border:1px solid #22273a;background:#14171f;color:#8891a8;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
     .sb-btn-fit:hover{border-color:#e8913a;color:#e8913a;background:rgba(232,145,58,.06)}
+    .sb-btn-fit.on{border-color:rgba(232,145,58,.4);color:#e8913a;background:rgba(232,145,58,.08)}
     .sb-list{flex:1;overflow-y:auto;padding:8px}
     .sb-item{display:flex;align-items:stretch;border-radius:10px;margin-bottom:6px;overflow:hidden;border:1px solid #22273a;cursor:pointer;transition:all .2s;background:#14171f}
     .sb-item:hover{border-color:#333a52;background:#191d28}
@@ -57,17 +58,25 @@
     .mk-dot{width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.45);transition:transform .2s,box-shadow .2s;cursor:pointer}
     .mk-dot:hover{transform:scale(1.25);box-shadow:0 4px 14px rgba(0,0,0,.6)}
     .mk-dot.hl{transform:scale(1.3);box-shadow:0 0 0 4px rgba(255,255,255,.25),0 4px 14px rgba(0,0,0,.5)}
-    /* ★ P-11 + P-14: marcador "primera captura sin origen" — halo radar pulsante,
-       anillo punteado giratorio y glow dorado. El position:relative vive SOLO en
-       .mk-dot (hijo interno) para NO romper el anclaje absoluto de Leaflet. */
+    /* P-11 + P-14: marcador "primera captura sin origen" (anclaje intacto) */
     .mk-sin-origen .mk-dot{position:relative;border-color:#ffd166;box-shadow:0 0 0 3px rgba(255,209,102,.35),0 0 16px 5px rgba(255,209,102,.45)}
     .mk-sin-origen .mk-dot::before{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid #ffd166;animation:sinOrigenPing 1.5s ease-out infinite;pointer-events:none}
     .mk-sin-origen .mk-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2.5px dashed #ffd166;animation:sinOrigenGiro 9s linear infinite;pointer-events:none}
     @keyframes sinOrigenPing{0%{transform:scale(1);opacity:.85}70%,100%{transform:scale(2.1);opacity:0}}
     @keyframes sinOrigenGiro{to{transform:rotate(360deg)}}
-    @media (prefers-reduced-motion:reduce){.mk-sin-origen .mk-dot::before,.mk-sin-origen .mk-dot::after{animation:none}}
+    /* ★ #2: pulso blanco en el punto actual de rutas en proceso
+       (excluido si el punto tambien es sinOrigen: ese ya tiene su halo) */
+    .mk-actual .mk-dot{position:relative}
+    .mk-actual .mk-dot::before{content:"";position:absolute;inset:-2px;border-radius:50%;border:3px solid #fff;opacity:.8;animation:pulseActual 1.6s ease-out infinite;pointer-events:none}
+    @keyframes pulseActual{0%{transform:scale(1);opacity:.8}100%{transform:scale(2.4);opacity:0}}
+    @media (prefers-reduced-motion:reduce){.mk-sin-origen .mk-dot::before,.mk-sin-origen .mk-dot::after,.mk-actual .mk-dot::before{animation:none}}
     .mk-gap{width:26px;height:26px;border-radius:50%;background:#f87171;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.5);border:2px solid #fff;cursor:pointer;transition:transform .2s}
     .mk-gap:hover{transform:scale(1.25)}
+    /* ★ Leyenda de sector: etiqueta permanente discreta junto al punto */
+    .lbl-sector{background:rgba(14,16,24,.82) !important;border:1px solid #22273a !important;color:#8891a8 !important;font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;padding:1px 6px !important;border-radius:5px !important;box-shadow:none !important}
+    .lbl-sector::before{display:none !important} /* sin flecha del tooltip */
+    .sin-etiquetas .lbl-sector{display:none}
+    .zoom-lejos .lbl-sector{display:none} /* auto-ocultar al alejar mucho */
     .leaflet-popup-content-wrapper{background:#14171f !important;color:#e4e8f1 !important;border:1px solid #22273a !important;border-radius:12px !important;box-shadow:0 8px 28px rgba(0,0,0,.5) !important;padding:0 !important}
     .leaflet-popup-tip{background:#14171f !important;border:1px solid #22273a !important;border-top:none !important;border-left:none !important}
     .leaflet-popup-close-button{color:#565e74 !important;font-size:18px !important;top:6px !important;right:8px !important}
@@ -80,7 +89,6 @@
     .pp-row a{color:#60a5fa;text-decoration:none;font-weight:600}
     .pp-row a:hover{text-decoration:underline}
     .pp-coord{font-family:'Space Grotesk',monospace;font-size:10px;color:#565e74;margin-top:5px;padding-top:5px;border-top:1px solid #22273a}
-    /* Pantalla "sin datos" cuando se abre el mapa directamente */
     .sin-mapa{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#08090d;z-index:5000;text-align:center}
     .sin-mapa i{font-size:42px;color:#22273a;display:block;margin-bottom:14px}
     .sin-mapa p{color:#8891a8;font-size:14px;font-weight:600}
@@ -100,7 +108,10 @@
       <h2><i class="fa-solid fa-map-location-dot"></i> <span id="sbTitulo">Mapa</span></h2>
       <div class="sb-stats" id="sbStats"></div>
       <div id="frescura" class="frescura"></div>
-      <button class="sb-btn-fit" onclick="fitAll()"><i class="fa-solid fa-expand"></i> Ajustar vista</button>
+      <div class="sb-btns">
+        <button class="sb-btn-fit" onclick="fitAll()"><i class="fa-solid fa-expand"></i> Ajustar vista</button>
+        <button class="sb-btn-fit on" id="btnEtiquetas" onclick="toggleEtiquetas()" title="Mostrar/ocultar leyenda de sector junto a cada punto"><i class="fa-solid fa-tags"></i> Sectores</button>
+      </div>
     </div>
     <div class="sb-list" id="sbList"></div>
   </aside>
@@ -121,7 +132,9 @@
        - Al cargar: lee payload de localStorage['pm_mapa_datos']
        - Handshake: avisa al panel con postMessage {__mapaListo}
        - Live updates: escucha {__mapaDatos} y re-renderiza sin
-         recargar (mantiene zoom y posicion del mapa)
+         recargar (mantiene zoom, popup abierto y seleccion)
+       - Tick interno de 60s: refresca "inactivo X min" localmente
+       - Leyenda de sector: tooltip discreto por punto (toggle)
        ============================================================ */
 
     var U = { desvOk: 100, desvAl: 300, inactOk: 30, inactAl: 60, saltoMin: 60 };
@@ -130,8 +143,14 @@
     var groups = {};
     var allBounds = [];
     var yaFit = false;        /* fitBounds solo en el primer render */
-    var ocultos = {};         /* codigo -> true: transportes ocultos por el usuario */
-    var frescuraTimer = null;
+    var ocultos = {};         /* codigo -> true: transportes ocultos (persistente) */
+    var codigoActivo = null;  /* ★ #1: item seleccionado del sidebar (sobrevive re-render) */
+    var ultimoPayload = null; /* ★ #3: para el tick interno */
+    var etiquetasOn = true;   /* ★ leyenda de sector */
+
+    /* ★ #4: ocultos persistentes */
+    try { ocultos = JSON.parse(localStorage.getItem('mapa_ocultos') || '{}'); } catch (e) { ocultos = {}; }
+    try { etiquetasOn = localStorage.getItem('mapa_etiquetas') !== '0'; } catch (e) {}
 
     function esc(s) {
       return String(s == null ? '' : s)
@@ -177,13 +196,48 @@
         maxNativeZoom: 16, maxZoom: 19
       }).addTo(map);
       bindList();
+      /* ★ leyenda de sector: aplicar preferencia guardada */
+      if (!etiquetasOn) {
+        document.body.classList.add('sin-etiquetas');
+        var b = document.getElementById('btnEtiquetas');
+        b.classList.remove('on'); b.innerHTML = '<i class="fa-solid fa-tags"></i> Sectores';
+      }
+      /* ★ auto-ocultar etiquetas a zoom bajo (menos de 13) */
+      map.on('zoomend', function() {
+        document.body.classList.toggle('zoom-lejos', map.getZoom() < 13);
+      });
+    }
+
+    /* ★ #1: capturar popup abierto antes de destruir las capas.
+       Se identifica por codigo de transporte + coordenada exacta del marcador. */
+    function capturarEstadoVisual() {
+      var pop = null;
+      Object.keys(groups).forEach(function(k) {
+        groups[k].eachLayer(function(l) {
+          if (l.isPopupOpen && l.isPopupOpen() && l.getLatLng) {
+            pop = { codigo: k, lat: l.getLatLng().lat, lng: l.getLatLng().lng };
+          }
+        });
+      });
+      return pop;
+    }
+    /* ★ #1: restaurar popup tras el re-render (si el punto sigue existiendo) */
+    function restaurarEstadoVisual(pop) {
+      if (!pop || !groups[pop.codigo]) return;
+      groups[pop.codigo].eachLayer(function(l) {
+        if (l.getLatLng
+            && Math.abs(l.getLatLng().lat - pop.lat) < 1e-7
+            && Math.abs(l.getLatLng().lng - pop.lng) < 1e-7) {
+          l.openPopup();
+        }
+      });
     }
 
     /* ★ Render de capas: reconstruible sin recrear el mapa (live updates) */
     function renderDatos(transportes) {
       try {
+        var popAbierto = capturarEstadoVisual(); /* ★ #1 */
         T = transportes || [];
-        /* limpiar capas previas (los ocultos se recuerdan en ocultos{}) */
         Object.keys(groups).forEach(function(k) { map.removeLayer(groups[k]); });
         groups = {}; allBounds = [];
 
@@ -211,8 +265,7 @@
 
           var enRuta = t.puntos.filter(function(p) { return !p.pendiente; });
           var pend = t.puntos.filter(function(p) { return p.pendiente; });
-          /* ★ P-12: orden cronologico unificado — p.t (epoch real, mismo parser
-             que la deteccion de saltos) primero; hkey(hora) solo como fallback */
+          /* P-12: orden cronologico unificado (p.t primero, hkey fallback) */
           enRuta.sort(function(a, b) {
             var ka = (a.t != null) ? a.t : hkey(a.hora);
             var kb = (b.t != null) ? b.t : hkey(b.hora);
@@ -226,6 +279,21 @@
           gaps.forEach(function(x) { if (x != null && x > U.saltoMin * 60000) nGaps++; });
           nGapG += nGaps;
 
+          /* ★ #5: distancia recorrida (Haversine sobre la secuencia real) */
+          var distKm = 0;
+          for (var di = 1; di < enRuta.length; di++) {
+            var A = enRuta[di - 1], B = enRuta[di];
+            var dLa = (B.lat - A.lat) * Math.PI / 180, dLo = (B.lng - A.lng) * Math.PI / 180;
+            var hA = Math.sin(dLa / 2) * Math.sin(dLa / 2)
+                   + Math.cos(A.lat * Math.PI / 180) * Math.cos(B.lat * Math.PI / 180) * Math.sin(dLo / 2) * Math.sin(dLo / 2);
+            distKm += 2 * 6371000 * Math.atan2(Math.sqrt(hA), Math.sqrt(1 - hA));
+          }
+          distKm = Math.round(distKm / 100) / 10;
+
+          /* ★ #2: t del ultimo punto capturado de rutas en proceso (punto actual) */
+          var tActual = (t.estado === 'en_proceso' && enRuta.length)
+            ? enRuta[enRuta.length - 1].t : null;
+
           var seq = enRuta.concat(pend);
           var coords = [], nPenT = 0;
           seq.forEach(function(p, i) {
@@ -233,7 +301,12 @@
             if (esPen) nPenT++;
             var col = t.color;
             var num = esPen ? '?' : (coords.length + 1);
-            var clsExtra = p.sinOrigen ? ' mk-sin-origen' : '';
+            /* ★ clases: sinOrigen tiene prioridad sobre el pulso del punto actual
+               (ambos usan ::before/::after del .mk-dot; el halo dorado ya es
+               suficientemente llamativo por si solo) */
+            var esActual = (!esPen && !p.sinOrigen && tActual != null && p.t === tActual);
+            var clsExtra = (p.sinOrigen ? ' mk-sin-origen' : '')
+                         + (esActual ? ' mk-actual' : '');
             var icon = L.divIcon({
               className: 'mk' + clsExtra,
               html: '<div class="mk-dot" style="background:' + col + ';' + (esPen ? 'border-style:dashed;' : '') + '">' + num + '</div>',
@@ -249,6 +322,10 @@
               ph += '<div class="pp-row"><i class="fa-solid fa-hourglass-half"></i>GPS aun no capturado</div>';
               ph += '<div class="pp-row"><a href="https://www.google.com/maps?q=' + p.lat + ',' + p.lng + '" target="_blank" rel="noopener"><i class="fa-solid fa-diamond-turn-right"></i> Ir a capturar</a></div>';
             } else {
+              if (esActual) {
+                /* ★ #2: senal clara de ultima posicion conocida */
+                ph += '<div class="pp-row"><i class="fa-solid fa-location-crosshairs" style="color:#60a5fa"></i><span style="color:#60a5fa;font-weight:700">Ultima posicion conocida</span></div>';
+              }
               ph += '<div class="pp-row"><i class="fa-regular fa-clock"></i>' + esc(cuando(p.hora)) + '</div>';
               var gIdx = coords.length;
               if (gIdx > 0 && gaps[gIdx] != null && gaps[gIdx] > U.saltoMin * 60000) {
@@ -273,6 +350,10 @@
             ph += '<div class="pp-coord">' + p.lat.toFixed(6) + ', ' + p.lng.toFixed(6) + '</div>';
             ph += '</div>';
             m.bindPopup(ph, { maxWidth: 260 });
+            /* ★ leyenda de sector: tooltip permanente discreto (si el punto tiene sector) */
+            if (p.sector) {
+              m.bindTooltip(esc(p.sector), { permanent: true, direction: 'right', offset: [13, 0], className: 'lbl-sector', opacity: 1 });
+            }
             m.addTo(g);
             if (!esPen) coords.push([p.lat, p.lng]);
             allBounds.push([p.lat, p.lng]);
@@ -307,7 +388,7 @@
           listHtml += '<div class="sb-item" data-cod="' + esc(t.codigo) + '">';
           listHtml += '<div class="sb-bar" style="background:' + t.color + '"></div>';
           listHtml += '<div class="sb-content"><div class="sb-top"><span class="sb-codigo" style="color:' + t.color + '">' + esc(t.codigo) + '</span><span class="sb-badge ' + ec + '">' + et + '</span></div>';
-          listHtml += '<div class="sb-meta"><i class="fa-solid fa-location-dot"></i>' + t.puntos.length + ' puntos' + (nPenT > 0 ? ' &middot; ' + nPenT + ' pend.' : '') + (nGaps > 0 ? ' &middot; <span style="color:#f87171;font-weight:700">' + nGaps + ' salto' + (nGaps !== 1 ? 's' : '') + ' &gt;' + U.saltoMin + ' min</span>' : '') + (t.inact != null ? ' &middot; <span style="color:' + (t.inact < U.inactOk ? '#34d399' : (t.inact < U.inactAl ? '#fbbf24' : '#f87171')) + ';font-weight:700">inactivo ' + fmtDur(t.inact) + '</span>' : '') + '</div></div>';
+          listHtml += '<div class="sb-meta"><i class="fa-solid fa-location-dot"></i>' + t.puntos.length + ' puntos' + (nPenT > 0 ? ' &middot; ' + nPenT + ' pend.' : '') + (distKm > 0 ? ' &middot; <i class="fa-solid fa-road"></i>' + distKm + ' km' : '') + (nGaps > 0 ? ' &middot; <span style="color:#f87171;font-weight:700">' + nGaps + ' salto' + (nGaps !== 1 ? 's' : '') + ' &gt;' + U.saltoMin + ' min</span>' : '') + (t.inact != null ? ' &middot; <span style="color:' + (t.inact < U.inactOk ? '#34d399' : (t.inact < U.inactAl ? '#fbbf24' : '#f87171')) + ';font-weight:700">inactivo ' + fmtDur(t.inact) + '</span>' : '') + '</div></div>';
           listHtml += '<button class="sb-eye' + (estaOculto ? ' off' : '') + '" data-cod="' + esc(t.codigo) + '" title="Mostrar/ocultar"><i class="fa-solid fa-' + (estaOculto ? 'eye-slash' : 'eye') + '"></i></button></div>';
         });
 
@@ -315,10 +396,20 @@
         document.getElementById('sbStats').innerHTML = statsHtml;
         document.getElementById('sbList').innerHTML = listHtml;
 
+        /* ★ #1: restaurar seleccion del sidebar */
+        document.querySelectorAll('.sb-item').forEach(function(el) {
+          el.classList.toggle('active', el.getAttribute('data-cod') === codigoActivo);
+        });
+
+        /* ★ #4: limpiar ocultos de codigos que ya no existen en el payload */
+        Object.keys(ocultos).forEach(function(k) { if (!groups[k]) delete ocultos[k]; });
+        try { localStorage.setItem('mapa_ocultos', JSON.stringify(ocultos)); } catch (e) {}
+
         if (!yaFit && allBounds.length > 0) {
           map.fitBounds(L.latLngBounds(allBounds), { padding: [40, 40], maxZoom: 16 });
           yaFit = true;
         }
+        restaurarEstadoVisual(popAbierto); /* ★ #1: reabrir el popup que estaba abierto */
       } catch (e) {
         console.error(e);
         document.getElementById('sbStats').innerHTML = '<span class="sb-stat s-pr" style="max-width:280px">Error: ' + esc(e.message) + '</span>';
@@ -327,6 +418,7 @@
 
     function aplicarPayload(p) {
       if (!p) return;
+      ultimoPayload = p; /* ★ #3: para el tick interno */
       if (p.umbrales) U = p.umbrales;
       document.getElementById('sbTitulo').textContent = p.subtitulo || 'Mapa';
       document.title = p.titulo || 'Mapa de monitoreo';
@@ -357,7 +449,6 @@
           var p = JSON.parse(raw);
           if (p && p.transportes && p.transportes.length) {
             aplicarPayload(p);
-            /* handshake: el panel respondera con datos frescos si esta abierto */
             if (window.opener && !window.opener.closed) {
               try { window.opener.postMessage({ __mapaListo: true }, '*'); } catch (e) {}
             }
@@ -369,19 +460,45 @@
         sinDatos();
       }
       /* re-chequeo del banner de frescura cada minuto */
-      var ultimaTs = 0;
-      frescuraTimer = setInterval(function() {
+      setInterval(function() {
         try {
           var raw2 = localStorage.getItem('pm_mapa_datos');
           if (raw2) { var p2 = JSON.parse(raw2); if (p2 && p2.ts) actualizarFrescura(p2.ts); }
         } catch (e) {}
       }, 60000);
+      /* ★ #3: tick interno — "inactivo X min" se refresca localmente cada 60s
+         sin esperar el push del panel. El fix #1 re-abre el popup si estaba abierto. */
+      setInterval(function() {
+        if (!ultimoPayload || !ultimoPayload.transportes) return;
+        var cambio = false;
+        ultimoPayload.transportes.forEach(function(t) {
+          if (t.estado !== 'en_proceso') return;
+          var maxT = 0;
+          t.puntos.forEach(function(p) { if (!p.pendiente && p.t != null && p.t > maxT) maxT = p.t; });
+          if (maxT) {
+            var nuevoInact = Math.max(0, Math.floor((Date.now() - maxT) / 60000));
+            if (nuevoInact !== t.inact) { t.inact = nuevoInact; cambio = true; }
+          }
+        });
+        if (cambio) renderDatos(ultimoPayload.transportes);
+      }, 60000);
     });
+
+    /* ★ Leyenda de sector: toggle persistente */
+    function toggleEtiquetas() {
+      etiquetasOn = !etiquetasOn;
+      document.body.classList.toggle('sin-etiquetas', !etiquetasOn);
+      var b = document.getElementById('btnEtiquetas');
+      b.classList.toggle('on', etiquetasOn);
+      b.innerHTML = '<i class="fa-solid fa-tags"></i> Sectores';
+      try { localStorage.setItem('mapa_etiquetas', etiquetasOn ? '1' : '0'); } catch (e) {}
+    }
 
     /* ===== INTERACCIONES SIDEBAR ===== */
     function zoomT(c) {
       var g = groups[c];
       if (!g) return;
+      codigoActivo = c; /* ★ #1: recordar seleccion entre re-renders */
       var b = [];
       g.eachLayer(function(l) { if (l.getLatLng) b.push(l.getLatLng()); });
       if (b.length) map.fitBounds(L.latLngBounds(b), { padding: [50, 50], maxZoom: 17 });
@@ -437,7 +554,7 @@
       if (!g) return;
       if (map.hasLayer(g)) {
         map.removeLayer(g);
-        ocultos[c] = true; /* recuerda el estado entre re-renders (live updates) */
+        ocultos[c] = true;
         btn.classList.add('off');
         btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
       } else {
@@ -446,6 +563,8 @@
         btn.classList.remove('off');
         btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
       }
+      /* ★ #4: persistir entre sesiones */
+      try { localStorage.setItem('mapa_ocultos', JSON.stringify(ocultos)); } catch (e) {}
     }
 
     function fitAll() {
