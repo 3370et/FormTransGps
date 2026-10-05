@@ -47,7 +47,6 @@
     .sb-head{padding:12px 14px 8px;border-bottom:1px solid #22273a;flex-shrink:0}
     .sb-head h2{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px}
     .sb-head h2 i{color:#e8913a;font-size:12px}
-    /* ★ v3.6: badge de alertas junto al título (popover, libera espacio) */
     #btnAlertas{display:none;margin-left:4px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#f87171;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:800;padding:3px 9px;border-radius:99px;cursor:pointer;transition:all .2s;flex-shrink:0}
     #btnAlertas:hover{background:rgba(248,113,113,.16)}
     .sb-chips{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
@@ -71,7 +70,6 @@
     .bd{background:rgba(255,209,102,.1);color:#ffd166;border:1px solid rgba(255,209,102,.25)}
     .sb-meta{font-size:10.5px;color:#565e74;margin-top:4px}
     .sb-meta i{font-size:9.5px;margin:0 3px 0 0}
-    /* ★ v3.6: picker de camión (botón + popover flotante a ancho completo) */
     .sb-veh{margin-top:6px;display:flex;align-items:center;gap:6px;background:#0e1018;border:1px solid #22273a;border-radius:8px;padding:4px 7px}
     .sb-veh:hover{border-color:#e8913a}
     .veh-lbl{font-size:9px;font-weight:800;color:#e8913a;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;display:flex;align-items:center;gap:4px}
@@ -97,7 +95,6 @@
     .vp-b.hab{background:rgba(94,234,212,.08);color:#5eead4;border:1px solid rgba(94,234,212,.25)}
     .vp-b.na{background:rgba(148,163,184,.08);color:#94a3b8;border:1px solid rgba(148,163,184,.25)}
     .vop-sep{font-size:8.5px;font-weight:800;color:#565e74;text-transform:uppercase;letter-spacing:.06em;padding:5px 9px 2px}
-    /* ★ v3.6: popover de alertas */
     #alertasPop{position:fixed;z-index:3000;display:none;width:min(380px,92vw);max-height:50vh;overflow-y:auto;background:#14171f;border:1px solid rgba(248,113,113,.35);border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.6);padding:10px 12px}
     #alertasPop .ap-t{font-size:10px;font-weight:800;color:#f87171;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
     #alertasPop .ap-row{font-size:11px;color:#fca5a5;line-height:1.4;margin-bottom:5px;display:flex;gap:6px}
@@ -173,17 +170,21 @@
     <div id="map"></div>
   </div>
 
-  <!-- ★ v3.6: popovers flotantes (picker de camión + alertas) -->
   <div id="vehPop" class="veh-pop"></div>
   <div id="alertasPop"><div class="ap-t">Observaciones del plan</div><div id="alertasBody"></div></div>
 
   <script>
     /* =====================================================================
-       PLANIFICADOR DE ENTREGAS v3.6
+       PLANIFICADOR DE ENTREGAS v3.6.1
        Modelo de fechas: rutas/{D} se carga la víspera; despacho y P&P = D+1.
        Historial: capturas <= D. Plan guardado con fechaDespacho.
-       ★ v3.6: picker de camión flotante (nombres completos legibles) y
-         alertas reubicadas en badge+popover (más espacio para las rutas).
+       ★ v3.6.1 FIX "Invalid LatLng (NaN,NaN)":
+         - num(): coerción Number() explícita en TODA entrada de Firebase
+           (un string "−0.2" pasaba isFinite pero concatenaba en sumas → NaN)
+         - buscarClientesEnFecha filtra items sin codc (excluye nodos 'plan'
+           mezclados con los items de la fecha)
+         - peso inválido → 0 + alerta visible
+         - red de seguridad: ningún punto con coordenada no finita llega al mapa
        ===================================================================== */
 
     /* ================= CONFIGURACIÓN ================= */
@@ -226,8 +227,6 @@
       { cod:'120',  nom:'ZARATE JEFFERSON',       placa:'TDH0432', c1:null,c2:80,  c3:12   }
     ];
 
-    /* ★ SÁBADO: media flota sin P&P. Códigos de los que trabajan sábado.
-       Vacío [] = sábado usa toda la flota. */
     var FLOTA_SABADO = [ /* ej: ['101','119','176','144'] */ ];
 
     var DIAS_SEM = ['Domingo','Lunes','Martes','Mi\u00e9rcoles','Jueves','Viernes','S\u00e1bado'];
@@ -253,6 +252,10 @@
 
     /* ================= UTILIDADES ================= */
     function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+    /* ★ v3.6.1: coerción numérica segura — "−0.2" → −0.2, "abc"/null/objeto → NaN.
+       NaN nunca pasa isFinite, así que cae a fallback/exclusión en vez de
+       contaminar sumas (la causa del Invalid LatLng) */
+    function num(v){ var n = Number(v); return isFinite(n) ? n : NaN; }
     function havKm(a,b){ var al=(a.lng!=null)?a.lng:a.lon, bl=(b.lng!=null)?b.lng:b.lon;
       var dLa=(b.lat-a.lat)*Math.PI/180, dLo=(bl-al)*Math.PI/180;
       var s=Math.pow(Math.sin(dLa/2),2)+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.pow(Math.sin(dLo/2),2);
@@ -332,9 +335,10 @@
             var d = new Date(t);
             pts.push({
               codc: it.codclnt || null, clnt: it.item || '', sector: it.sector || '',
-              lat: it.gps.lat, lng: it.gps.lng, t: t,
+              /* ★ v3.6.1: coerción numérica — NaN fallará isFinite en todos los guards */
+              lat: num(it.gps.lat), lng: num(it.gps.lng), t: t,
               hora: pad2(d.getHours()) + ':' + pad2(d.getMinutes()),
-              atenMin: (it.permanencia && isFinite(it.permanencia.minutos)) ? it.permanencia.minutos : null,
+              atenMin: (it.permanencia != null && isFinite(Number(it.permanencia.minutos))) ? Number(it.permanencia.minutos) : null,
               vIni: it.inicio || '', vFin: it.fin || ''
             });
           });
@@ -421,21 +425,26 @@
     function prepararClientes(clientes, hist, stats) {
       var alertas = [], cent = centroidesSector(clientes, hist);
       clientes.forEach(function(c) {
+        /* ★ v3.6.1: normalizar tipos ANTES de cualquier validación */
+        c.lat = num(c.lat); c.lon = num(c.lon);
+        var p = num(c.peso);
+        if (!isFinite(p)) { alertas.push('Peso inv\u00e1lido en ' + (c.clnt||c.codc) + ' \u2014 tratado como 0 kg'); p = 0; }
+        c.peso = p;
         var s = stats.cli[c.codc];
         c._aten = (s && s.atenProm != null) ? s.atenProm : PU.atenMinDef;
         if (ventana(c.horarios)) { c._vent = ventana(c.horarios); c._vFuente = 'indicada'; }
         else if (s && s.ventModa) { c._vent = s.ventModa; c._vFuente = 'hist\u00f3rica ' + s.ventTxt; }
         else { c._vent = null; c._vFuente = ''; }
         var man = COORDS_MANUALES[c.codc];
-        if (man) { c.lat = man.lat; c.lon = man.lon; c.geoFallback = 'coordenada manual'; return; }
+        if (man && isFinite(num(man.lat)) && isFinite(num(man.lon))) { c.lat = num(man.lat); c.lon = num(man.lon); c.geoFallback = 'coordenada manual'; return; }
         if (isFinite(c.lat) && isFinite(c.lon) && !(Math.abs(c.lat)<0.001 && Math.abs(c.lon)<0.001)) return;
-        if (s && s.nGeo > 0) { c.lat = s.lat; c.lon = s.lon; c.geoFallback = 'promedio GPS hist\u00f3rico (' + s.nGeo + ' capturas)'; return; }
+        if (s && s.nGeo > 0 && isFinite(s.lat) && isFinite(s.lon)) { c.lat = s.lat; c.lon = s.lon; c.geoFallback = 'promedio GPS hist\u00f3rico (' + s.nGeo + ' capturas)'; return; }
         var ce = cent[c.sector];
-        if (ce) { c.lat = ce.lat; c.lon = ce.lon; c.geoFallback = 'centroide sector "' + c.sector + '"'; return; }
+        if (ce && isFinite(ce.lat) && isFinite(ce.lon)) { c.lat = ce.lat; c.lon = ce.lon; c.geoFallback = 'centroide sector "' + c.sector + '"'; return; }
         alertas.push('Sin coordenada para ' + c.clnt + ' (' + c.codc + ') \u2014 excluido del plan');
         c._excluir = true;
       });
-      return { clientes: clientes.filter(function(c){ return !c._excluir; }), alertas: alertas };
+      return { clientes: clientes.filter(function(c){ return !c._excluir && isFinite(c.lat) && isFinite(c.lon); }), alertas: alertas };
     }
 
     /* ================= [4] EMPAQUE FFD ================= */
@@ -593,7 +602,7 @@
         }
       });
 
-      return { ts: Date.now(), version: 'v3.6-3t-pp', capKg: CAP_KG, salidaEstimada: fmtMin(salidaMin),
+      return { ts: Date.now(), version: 'v3.6.1-3t-pp', capKg: CAP_KG, salidaEstimada: fmtMin(salidaMin),
         diasHistorial: hist.length, deposito: dep,
         fechaDespacho: fechaDespacho, picoPlaca: pp, alertas: alertas, planes: planes };
     }
@@ -601,12 +610,25 @@
     /* ================= FIREBASE: LECTURAS / ESCRITURA ================= */
     function normalizarDeposito(v) {
       if (!v) return null;
-      var lat = (v.lat != null) ? v.lat : v['lat:'];
-      var lon = v.lon;
+      /* ★ v3.6.1: coerción numérica también en el depósito */
+      var lat = num((v.lat != null) ? v.lat : v['lat:']);
+      var lon = num(v.lon);
       if (!isFinite(lat) || !isFinite(lon) || (Math.abs(lat)<0.001 && Math.abs(lon)<0.001)) return null;
       return { lat: lat, lon: lon };
     }
+    /* Buscador recursivo de los items de planificación bajo rutas/{fecha}.
+       ★ v3.6.1: el resultado se filtra a items con codc != null — esto
+       excluye nodos 'plan' u otros objetos mezclados en la fecha (causa
+       previa de coordenadas indefinidas). */
     function buscarClientesEnFecha(nodo, prof) {
+      var encontrados = _buscarRec(nodo, prof || 0);
+      if (!encontrados) return null;
+      var limpios = encontrados.filter(function(x) {
+        return x && typeof x === 'object' && !Array.isArray(x) && x.codc != null;
+      });
+      return limpios.length ? limpios : null;
+    }
+    function _buscarRec(nodo, prof) {
       if (!nodo || typeof nodo !== 'object' || prof > 3) return null;
       if (Array.isArray(nodo)) {
         if (nodo.length && nodo[0] && nodo[0].codc != null) return nodo;
@@ -620,7 +642,7 @@
         if (excluidos[keys[i]]) continue;
         var v = nodo[keys[i]];
         if (v && typeof v === 'object') {
-          var r = buscarClientesEnFecha(v, prof + 1);
+          var r = _buscarRec(v, prof + 1);
           if (r) return r;
         }
       }
@@ -762,7 +784,7 @@
     function renderPlan(plan) {
       Object.keys(groups).forEach(function(k){ map.removeLayer(groups[k]); });
       groups = {}; mkIndex = {};
-      if (plan.deposito) {
+      if (plan.deposito && isFinite(plan.deposito.lat) && isFinite(plan.deposito.lon)) {
         var gd = L.layerGroup();
         var dm = L.marker([plan.deposito.lat, plan.deposito.lon], {
           icon: L.divIcon({ className:'mk', html:'<div class="mk-dep"><i class="fa-solid fa-warehouse"></i></div>', iconSize:[34,34], iconAnchor:[17,17], popupAnchor:[0,-18] })
@@ -774,17 +796,20 @@
         var col = PALETA[pi % PALETA.length]; pl._color = col;
         var g = L.layerGroup(); groups[String(pi)] = g;
         if (!ocultos[String(pi)]) g.addTo(map);
-        var rutaPts = plan.deposito ? [[plan.deposito.lat, plan.deposito.lon]] : [];
-        pl.secuencia.forEach(function(d, di) {
+        var rutaPts = (plan.deposito && isFinite(plan.deposito.lat) && isFinite(plan.deposito.lon)) ? [[plan.deposito.lat, plan.deposito.lon]] : [];
+        /* ★ v3.6.1: red de seguridad — ningún punto con coordenada no finita llega al mapa */
+        var secuencia = pl.secuencia.filter(function(d){ return isFinite(d.lat) && isFinite(d.lon); });
+        secuencia.forEach(function(d, di) {
           rutaPts.push([d.lat, d.lon]);
           var icon = L.divIcon({ className:'mk', html:'<div class="mk-dot" style="background:' + col + '">' + d.orden + (d.viajes ? '*' : '') + '</div>', iconSize:[28,28], iconAnchor:[14,14], popupAnchor:[0,-16] });
           var m = L.marker([d.lat, d.lon], { icon: icon });
-          m.bindPopup(popupCliente(pl, d, di > 0 ? pl.secuencia[di-1] : plan.deposito, col), { maxWidth: 280 });
+          m.bindPopup(popupCliente(pl, d, di > 0 ? secuencia[di-1] : plan.deposito, col), { maxWidth: 280 });
           if (d.sector) m.bindTooltip(esc(d.sector), { permanent:true, direction:'right', offset:[13,0], className:'lbl-sector', opacity:1 });
           m.addTo(g);
           mkIndex[pi + ':' + d.orden] = m;
         });
-        L.polyline(rutaPts, { color: col, weight: 3.5, opacity: 0.65, lineJoin:'round', lineCap:'round' }).addTo(g);
+        if (rutaPts.length > 1)
+          L.polyline(rutaPts, { color: col, weight: 3.5, opacity: 0.65, lineJoin:'round', lineCap:'round' }).addTo(g);
       });
       fitAll();
     }
@@ -802,7 +827,6 @@
         '<span class="chip c-km">' + totKm + ' km</span>' +
         '<span class="chip c-h">salida ' + plan.salidaEstimada + '</span>' +
         '<span class="chip c-h">hist ' + plan.diasHistorial + ' d</span>';
-      /* ★ v3.6: badge de alertas (popover) en vez de bloque fijo */
       var nA = (plan.alertas || []).length;
       var bA = document.getElementById('btnAlertas');
       bA.style.display = nA > 0 ? 'inline-flex' : 'none';
@@ -820,7 +844,6 @@
         html += '<div class="sb-bar" style="background:' + pl._color + '"></div>';
         html += '<div class="sb-content">';
         html += '<div class="sb-top"><span class="sb-codigo" style="color:' + pl._color + '">' + esc(pl.transporte) + ' \u00b7 ' + esc(pl.ruta) + (pl.dedicado ? ' \u00b7 dedicado' : '') + (ppBad ? ' <span style="color:#f87171">\ud83d\udeabP&P</span>' : '') + '</span><span class="sb-badge ' + (pl.dedicado ? 'bd' : 'bp') + '">' + pl.utilizacion + '%' + (pl.viajes > 1 ? ' \u00b7 ' + pl.viajes + 'v' : '') + '</span></div>';
-        /* ★ v3.6: botón picker (abre popover con la flota completa legible) */
         html += '<div class="sb-veh"><span class="veh-lbl"><i class="fa-solid fa-truck"></i>Camión</span>';
         html += '<button type="button" class="veh-btn" data-pi="' + pi + '" title="Elegir transportista">';
         html += vAct
@@ -840,7 +863,7 @@
       document.getElementById('sbList').innerHTML = html;
     }
 
-    /* ================= ★ v3.6: PICKER DE CAMIÓN (popover flotante) ================= */
+    /* ================= PICKER DE CAMIÓN ================= */
     var popAbiertoPi = null;
     function abrirVehPop(pi, btn) {
       if (!planActual) return;
@@ -850,7 +873,7 @@
       var fDia = flotaDelDia(pp);
       var usados = {};
       planActual.planes.forEach(function(p, i){ if (i !== pi && p.transporte) usados[p.transporte] = p.ruta; });
-      var hab = camionHabitualRuta(porRutaDePlan(pl), planActual._habituales || {});
+      var hab = camionHabitualRuta((planActual._porRuta && planActual._porRuta[pl.ruta]) || [], planActual._habituales || {});
       var pop = document.getElementById('vehPop');
 
       function opcion(v) {
@@ -869,23 +892,20 @@
           '<div class="vop-m"><span>' + esc(v.placa) + '</span><span class="vop-dig' + (!ok ? ' bad' : '') + '">' + (dig != null ? dig : '?') + '</span>' + badges + '</div></button>';
       }
 
-      /* permitidos y libres primero; restringidos/ocupados al final */
       var libres = [], ocupados = [];
       fDia.forEach(function(v) {
         if (vehiculoPermitido(v, pp) && !usados[v.cod]) libres.push(v); else ocupados.push(v);
       });
       var html = '<div class="vop-sep">Disponibles (' + libres.length + ')</div>' + libres.map(opcion).join('');
       if (ocupados.length) html += '<div class="vop-sep">Restringidos / ocupados</div>' + ocupados.map(opcion).join('');
-      /* el asignado actual (si fuera de la lista) + opción sin asignar */
       var vAct = FLOTA.filter(function(x){ return x.cod === pl.transporte; })[0];
-      if (vAct && !fDia.some(function(x){ return x.cod === vAct.cod; }) && !libres.concat(ocupados).some(function(x){ return x.cod === vAct.cod; }))
+      if (vAct && !libres.concat(ocupados).some(function(x){ return x.cod === vAct.cod; }))
         html += '<div class="vop-sep">Actual</div>' + opcion(vAct);
       html += '<button type="button" class="vop" data-cod="__na__"><div class="vop-n">\u2014 Sin asignar \u2014</div><div class="vop-m">Queda como T gen\u00e9rico</div></button>';
 
       pop.innerHTML = html;
       pop.style.display = 'block';
       popAbiertoPi = pi;
-      /* posicionar bajo el botón (flip arriba si no cabe) */
       var r = btn.getBoundingClientRect();
       pop.style.left = '0px'; pop.style.top = '0px';
       var ph = pop.offsetHeight, pw = pop.offsetWidth;
@@ -894,8 +914,6 @@
       pop.style.left = Math.max(8, left) + 'px';
       pop.style.top = top + 'px';
     }
-    /* ruta del plan para buscar el habitual (por clientes de esa ruta original) */
-    function porRutaDePlan(pl) { return null; /* placeholder: el habitual viene en planActual._habituales map */ }
 
     function toggleAlertasPop(e) {
       if (e) e.stopPropagation();
@@ -917,18 +935,15 @@
       document.getElementById('alertasPop').style.display = 'none';
       popAbiertoPi = null;
     }
-    /* cerrar popovers con clic fuera, Escape, scroll o resize */
     document.addEventListener('click', function(e) {
       if (!e.target.closest('#vehPop') && !e.target.closest('.veh-btn') && !e.target.closest('#alertasPop') && !e.target.closest('#btnAlertas')) cerrarPops();
     });
     document.addEventListener('keydown', function(e) { if (e.key === 'Escape') cerrarPops(); });
     window.addEventListener('resize', cerrarPops);
-    document.querySelector('.sb-list') && null; /* scroll se maneja por listener global abajo */
 
     /* ================= INTERACCIONES ================= */
     function bindList() {
       var el = document.getElementById('sbList');
-      /* scroll de la lista cierra popovers (posición fixed quedaría descolgada) */
       el.addEventListener('scroll', cerrarPops);
       el.addEventListener('click', function(e) {
         var eye = e.target.closest('.sb-eye');
@@ -947,7 +962,6 @@
         var pl = e.target.closest('.sb-plan');
         if (pl) { pl.classList.toggle('open'); zoomPlan(pl.getAttribute('data-pi')); }
       });
-      /* clic en una opción del picker */
       document.getElementById('vehPop').addEventListener('click', function(e) {
         var op = e.target.closest('.vop');
         if (!op || popAbiertoPi == null) return;
@@ -963,7 +977,6 @@
         if (pl && !pl.contains(e.relatedTarget)) uhlPlan(pl.getAttribute('data-pi'));
       });
     }
-    /* ★ Reasignación con swap; '__na__' desasigna */
     function cambiarVehiculo(pi, codNuevo) {
       if (!planActual) return;
       var pp = planActual.picoPlaca;
@@ -1003,7 +1016,7 @@
     function zoomPlan(pi) {
       var g = groups[pi]; if (!g || !planActual) return;
       var b = [];
-      if (planActual.deposito) b.push([planActual.deposito.lat, planActual.deposito.lon]);
+      if (planActual.deposito && isFinite(planActual.deposito.lat)) b.push([planActual.deposito.lat, planActual.deposito.lon]);
       g.eachLayer(function(l){ if (l.getLatLng) b.push(l.getLatLng()); });
       if (b.length) map.fitBounds(L.latLngBounds(b), { padding:[50,50], maxZoom:16 });
     }
