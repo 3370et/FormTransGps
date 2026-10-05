@@ -32,62 +32,67 @@
     .chip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px}
     .c-h{background:rgba(255,209,102,.1);color:#ffd166;border:1px solid rgba(255,209,102,.25)}
     .c-pt{background:rgba(52,211,153,.1);color:#34d399;border:1px solid rgba(52,211,153,.2)}
-    #chipPP{padding:6px 10px}
+    #chipPP{padding:6px 10px;white-space:nowrap}
     #demo{display:none;background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.3);color:#ffd166;font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px}
     #estado{font-size:11px;color:#8891a8;margin-left:auto;display:flex;align-items:center;gap:6px}
     #estado.err{color:#f87171}
     #estado.busy i{animation:girar 1s linear infinite}
     @keyframes girar{to{transform:rotate(360deg)}}
     #main{flex:1;display:flex;min-height:0}
-    #sidebar{width:340px;min-width:340px;background:#0e1018;border-right:1px solid #22273a;display:flex;flex-direction:column;height:100%;transition:transform .3s ease}
+    #sidebar{width:720px;min-width:720px;background:#0e1018;border-right:1px solid #22273a;display:flex;flex-direction:column;height:100%;transition:transform .3s ease}
     #sidebar.hidden{transform:translateX(-100%);min-width:0;width:0;overflow:hidden}
-    .sb-head{padding:14px 14px 10px;border-bottom:1px solid #22273a;flex-shrink:0}
+    @media(max-width:1100px){
+      #sidebar{width:348px;min-width:348px}
+    }
+    .sb-head{padding:12px 14px 8px;border-bottom:1px solid #22273a;flex-shrink:0}
     .sb-head h2{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px}
     .sb-head h2 i{color:#e8913a;font-size:12px}
-    .sb-chips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+    .sb-chips{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
     .c-tr{background:rgba(232,145,58,.1);color:#e8913a;border:1px solid rgba(232,145,58,.2)}
     .c-kg{background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.2)}
     .c-km{background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.2)}
-    .sb-btns{display:flex;gap:6px;margin-top:8px}
-    .sb-btn-fit{flex:1;padding:7px;border-radius:8px;border:1px solid #22273a;background:#14171f;color:#8891a8;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+    .sb-btns{display:flex;gap:6px;margin-top:7px}
+    .sb-btn-fit{flex:1;padding:6px;border-radius:8px;border:1px solid #22273a;background:#14171f;color:#8891a8;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
     .sb-btn-fit:hover{border-color:#e8913a;color:#e8913a}
     .sb-btn-fit.on{border-color:rgba(232,145,58,.4);color:#e8913a;background:rgba(232,145,58,.08)}
-    #alertas{display:none;margin:8px 8px 0;padding:8px 10px;border-radius:8px;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.25);font-size:11px;color:#fca5a5;max-height:110px;overflow-y:auto;flex-shrink:0}
-    #alertas div{margin-bottom:3px;line-height:1.35}
-    .sb-list{flex:1;overflow-y:auto;padding:8px}
-    .sb-plan{display:flex;align-items:stretch;border-radius:10px;margin-bottom:6px;overflow:hidden;border:1px solid #22273a;background:#14171f;cursor:pointer;transition:border-color .2s}
+    #alertas{display:none;margin:8px;padding:7px 10px;border-radius:8px;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.25);font-size:10.5px;color:#fca5a5;max-height:80px;overflow-y:auto;flex-shrink:0}
+    #alertas div{margin-bottom:2px;line-height:1.35}
+    .sb-list{flex:1;overflow-y:auto;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:6px;align-content:start}
+    .sb-plan{display:flex;align-items:stretch;border-radius:9px;overflow:hidden;border:1px solid #22273a;background:#14171f;cursor:pointer;transition:border-color .2s;min-width:0}
     .sb-plan:hover{border-color:#333a52}
+    .sb-plan.open{grid-column:1 / -1}
     .sb-bar{width:5px;flex-shrink:0}
-    .sb-content{flex:1;padding:10px 12px;min-width:0}
-    .sb-top{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px}
-    .sb-codigo{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sb-content{flex:1;padding:8px 10px;min-width:0}
+    .sb-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+    .sb-codigo{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .sb-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;flex-shrink:0;white-space:nowrap}
     .bp{background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.2)}
     .bd{background:rgba(255,209,102,.1);color:#ffd166;border:1px solid rgba(255,209,102,.25)}
-    .sb-meta{font-size:11px;color:#565e74}
-    .sb-meta i{font-size:10px;margin:0 3px 0 6px}
-    /* ★ selector de camión bien visible: etiqueta naranja + dropdown */
-    .sb-veh{margin-top:8px;display:flex;align-items:center;gap:6px;background:#0e1018;border:1px solid #22273a;border-radius:8px;padding:5px 8px}
+    .sb-meta{font-size:10.5px;color:#565e74;margin-top:4px}
+    .sb-meta i{font-size:9.5px;margin:0 3px 0 0}
+    .sb-veh{margin-top:6px;display:flex;align-items:center;gap:6px;background:#0e1018;border:1px solid #22273a;border-radius:8px;padding:4px 7px}
     .sb-veh:hover{border-color:#e8913a}
     .veh-lbl{font-size:9px;font-weight:800;color:#e8913a;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;display:flex;align-items:center;gap:4px}
     .veh-lbl i{font-size:10px}
-    .veh-sel{flex:1;background:transparent;border:none;color:#e4e8f1;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color-scheme:dark;cursor:pointer;outline:none;min-width:0}
+    .veh-sel{flex:1;background:transparent;border:none;color:#e4e8f1;font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:700;color-scheme:dark;cursor:pointer;outline:none;min-width:0}
     .veh-sel:hover,.veh-sel:focus{color:#e8913a}
     .veh-sel option{background:#14171f;color:#e4e8f1}
-    .sb-paradas{display:none;margin-top:8px;border-top:1px solid #22273a;padding-top:6px}
+    .sb-paradas{display:none;margin-top:8px;border-top:1px solid #22273a;padding-top:6px;columns:2;column-gap:12px}
     .sb-plan.open .sb-paradas{display:block}
-    .sb-parada{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:7px;cursor:pointer}
+    @media(max-width:768px){.sb-paradas{columns:1}}
+    .sb-parada{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:7px;cursor:pointer;break-inside:avoid}
     .sb-parada:hover{background:#191d28}
-    .sp-num{width:20px;height:20px;border-radius:50%;color:#0b0d12;font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .sp-num{width:19px;height:19px;border-radius:50%;color:#0b0d12;font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
     .sp-body{min-width:0}
-    .sp-nombre{font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .sp-meta{font-size:10px;color:#565e74}
-    .sb-eye{width:30px;display:flex;align-items:center;justify-content:center;color:#565e74;font-size:11px;cursor:pointer;transition:color .2s;border:none;background:none;flex-shrink:0}
+    .sp-nombre{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sp-meta{font-size:9.5px;color:#565e74}
+    .sb-eye{width:26px;display:flex;align-items:center;justify-content:center;color:#565e74;font-size:10px;cursor:pointer;transition:color .2s;border:none;background:none;flex-shrink:0}
     .sb-eye:hover{color:#e4e8f1}
     .sb-eye.off{color:#2a2f40}
     #map{flex:1;min-width:0;z-index:1}
     .leaflet-container{background:#08090d !important}
-    #sbToggle{display:none;position:fixed;bottom:12px;left:12px;z-index:1100;width:38px;height:38px;border-radius:10px;border:1px solid #22273a;background:rgba(14,16,24,.92);color:#8891a8;font-size:15px;cursor:pointer;align-items:center;justify-content:center}
+    #sbToggle{position:fixed;top:12px;left:12px;z-index:1100;width:36px;height:36px;border-radius:10px;border:1px solid #22273a;background:rgba(14,16,24,.92);backdrop-filter:blur(8px);color:#8891a8;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+    #sbToggle:hover{border-color:#e8913a;color:#e8913a}
     .mk{background:none !important;border:none !important}
     .mk-dot{width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.45);transition:transform .2s;cursor:pointer}
     .mk-dot:hover{transform:scale(1.25)}
@@ -107,15 +112,17 @@
     .pp-row i{width:13px;text-align:center;font-size:9px;color:#565e74;flex-shrink:0}
     .pp-coord{font-family:'Space Grotesk',monospace;font-size:10px;color:#565e74;margin-top:5px;padding-top:5px;border-top:1px solid #22273a}
     @media(max-width:768px){
-      #sidebar{position:fixed;left:0;top:0;height:100vh;z-index:1150;box-shadow:8px 0 32px rgba(0,0,0,.5)}
-      #sbToggle{display:flex}
+      #sidebar{position:fixed;left:0;top:0;height:100vh;z-index:1150;box-shadow:8px 0 32px rgba(0,0,0,.5);width:100vw;min-width:100vw}
+      #sidebar.hidden{transform:translateX(-100%)}
     }
   </style>
 </head>
 <body>
+  <button id="sbToggle" onclick="document.getElementById('sidebar').classList.toggle('hidden')" title="Mostrar/ocultar panel de rutas"><i class="fa-solid fa-bars"></i></button>
+
   <header id="topbar">
     <span class="tb-title"><i class="fa-solid fa-route"></i> Planificador de entregas</span>
-    <input type="date" id="inpFecha" class="tb-fecha">
+    <input type="date" id="inpFecha" class="tb-fecha" title="Fecha de carga de datos en rutas/{fecha} (víspera). El despacho y el pico y placa se evalúan al DÍA SIGUIENTE.">
     <span id="chipPP" class="chip c-h"></span>
     <button class="tb-btn primary" id="btnGen" onclick="generar()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generar plan</button>
     <button class="tb-btn" id="btnSave" onclick="guardarPlan()" disabled><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
@@ -140,33 +147,37 @@
     <div id="map"></div>
   </div>
 
-  <button id="sbToggle" onclick="document.getElementById('sidebar').classList.toggle('hidden')"><i class="fa-solid fa-bars"></i></button>
-
   <script>
     /* =====================================================================
-       PLANIFICADOR DE ENTREGAS v3.3
+       PLANIFICADOR DE ENTREGAS v3.5
        Estructura Firebase:
          raiz/codigosUsados/{fecha}/{codRuta}/datosFormulario/{idx}  ← historial
          raiz/rutas/deposito                                          ← salida (typo "lat:" manejado)
          raiz/rutas/{fecha}/{items con codc}                          ← a planificar
          raiz/rutas/{fecha}/plan                                      ← plan guardado
+       ★ MODELO DE FECHAS (v3.5):
+         - rutas/{D} se carga la VÍSPERA; el despacho real es D+1
+         - El PICO Y PLACA se evalúa en D+1 (fecha de despacho)
+         - El plan se guarda en rutas/{D}/plan con fechaDespacho: D+1
+         - Historial: codigosUsados con fecha <= D (capturas de la víspera
+           incluidas: son el despacho más reciente)
        Reglas de negocio:
          - Orden de entrega real = momento de captura GPS
          - Capacidad única 3 t por vehículo
          - Cliente > 3 t = vehículo dedicado con N viajes al mismo punto
          - Hora local del navegador (Ecuador)
-       ★ Pico y placa (Quito) según la FECHA PLANIFICADA:
+       PICO Y PLACA (Quito), según la FECHA DE DESPACHO (D+1):
          Lunes 1-2 · Martes 3-4 · Miércoles 5-6 · Jueves 7-8 · Viernes 9-0
          Sábado: media flota sin restricción · Domingo: sin restricción
-       ★ Asignación de vehículos reales:
+       Asignación de vehículos reales:
          1º camión habitual del historial → 2º mayor capacidad disponible
          + reasignación manual por select (etiqueta CAMIÓN) con intercambio
        ===================================================================== */
 
     /* ================= CONFIGURACIÓN ================= */
     var FIREBASE_CONFIG = {
-      apiKey: "AIzaSyCrnroA2yd2coEVyn6Jm-q8sM6rvOb6Y3k", authDomain: "datos-formulario-f3cde.firebaseapp.com", databaseURL: "https://datos-formulario-f3cde-default-rtdb.firebaseio.com",   /* ← COMPLETAR (databaseURL obligatoria) */
-      projectId: "datos-formulario-f3cde", storageBucket: "datos-formulario-f3cde.firebasestorage.app", messagingSenderId: "1060204671476", appId: "1:1060204671476:web:a476539fa122fd04fa89a1"
+      apiKey: "", authDomain: "", databaseURL: "",   /* ← COMPLETAR (databaseURL obligatoria) */
+      projectId: "", storageBucket: "", messagingSenderId: "", appId: ""
     };
 
     var CAP_KG = 3000; /* capacidad única por vehículo: 3 toneladas */
@@ -177,34 +188,32 @@
        Ej: 'PN0001799': { lat: -0.7012, lon: -78.4455 } */
     var COORDS_MANUALES = { };
 
-    /* ================= FLOTA =================
-       c1/c2/c3 = capacidades originales de la tabla (referencia).
-       Corrección aplicada: ORELLANA SANTI = 176. */
+    /* ================= FLOTA (nombres oficiales) ================= */
     var FLOTA = [
-      { cod:'101',  nom:'ALMEIDA JULIO 1',  placa:'FAC5418', c1:352, c2:50, c3:4    },
-      { cod:'141',  nom:'ALMEIDA JULIO 2',  placa:'FAC5512', c1:308, c2:50, c3:5    },
-      { cod:'106',  nom:'ALTAMIRANO CE',    placa:'PAA3936', c1:352, c2:85, c3:10   },
-      { cod:'187',  nom:'ARTEAGA DIANA',    placa:'NAA0036', c1:352, c2:85, c3:10   },
-      { cod:'127',  nom:'ARTEAGA S. (CA)',  placa:'PFH5919', c1:24,  c2:0,  c3:0.6  },
-      { cod:'105',  nom:'ESQUEL UIS (CA)',  placa:'PAA3836', c1:343, c2:16, c3:7.5  },
-      { cod:'144',  nom:'CARDENAS DAN',     placa:'GSO165',  c1:420, c2:85, c3:12   },
-      { cod:'123',  nom:'CHACON FREDDY',    placa:'FZQ0863', c1:352, c2:85, c3:10   },
-      { cod:'107',  nom:'DUCHAN JAVIER',    placa:'FAC2514', c1:355, c2:85, c3:10   },
-      { cod:'119',  nom:'DELA CRUZ JOR',    placa:'PCN3220', c1:245, c2:16, c3:6    },
-      { cod:'102',  nom:'ESPARZA CRIST',    placa:'FFU5620', c1:180, c2:20, c3:2.5  },
-      { cod:'109',  nom:'FONSECA DORIS',    placa:'PAE8641', c1:280, c2:50, c3:6    },
-      { cod:'103',  nom:'GUIZMAN MAURI',    placa:'PAC3588', c1:280, c2:20, c3:5    },
-      { cod:'112',  nom:'JARA ANGEL 1',     placa:'PBE3739', c1:280, c2:20, c3:5    },
-      { cod:'129',  nom:'JARA ANGEL 2',     placa:'PAE3616', c1:350, c2:50, c3:7.5  },
-      { cod:'126',  nom:'JARA JOSE LUIS',   placa:'PBM9525', c1:245, c2:12, c3:5    },
-      { cod:'143',  nom:'NUÑEZ ORLAND',     placa:'PCE6642', c1:280, c2:12, c3:6    },
-      { cod:'115',  nom:'ORELLANA JOEL',    placa:'KAA8521', c1:350, c2:80, c3:7.5  },
-      { cod:'176',  nom:'ORELLANA SANTI',   placa:'PCP3630', c1:352, c2:85, c3:10   },
-      { cod:'182',  nom:'QUISTAL PATRIC',   placa:'PFU3086', c1:198, c2:16, c3:3.5  },
-      { cod:'118',  nom:'RIVADENEIRA CF',   placa:'PAE6318', c1:245, c2:12, c3:5    },
-      { cod:'172',  nom:'SANCHEZ LEON',     placa:'PAC3726', c1:null,c2:null,c3:5    },
-      { cod:'121',  nom:'TACIFAMATA SAN',   placa:'PAE1463', c1:406, c2:null,c3:10   },
-      { cod:'120',  nom:'ZARATE EFFERS',    placa:'TDH0432', c1:null,c2:80, c3:12   }
+      { cod:'101',  nom:'ALMEIDA JULIO 1',        placa:'FAC5418', c1:352, c2:50,  c3:4    },
+      { cod:'141',  nom:'ALMEIDA JULIO 2',        placa:'FAC5512', c1:308, c2:50,  c3:5    },
+      { cod:'106',  nom:'ALTAMIRANO CE',          placa:'PAA3936', c1:352, c2:85,  c3:10   },
+      { cod:'187',  nom:'ARTEAGA DIANA',          placa:'NAA0036', c1:352, c2:85,  c3:10   },
+      { cod:'127',  nom:'ARTEAGA SUSANA. (CA)',   placa:'PFH5919', c1:24,  c2:0,   c3:0.6  },
+      { cod:'105',  nom:'BOSQUE LUIS (CA)',       placa:'PAA3836', c1:343, c2:16,  c3:7.5  },
+      { cod:'144',  nom:'CARDENAS DAN',           placa:'GSO165',  c1:420, c2:85,  c3:12   },
+      { cod:'123',  nom:'CHACON FREDDY',          placa:'FZQ0863', c1:352, c2:85,  c3:10   },
+      { cod:'107',  nom:'DUCHAN JAVIER',          placa:'FAC2514', c1:355, c2:85,  c3:10   },
+      { cod:'119',  nom:'DELA CRUZ JOR',          placa:'PCN3220', c1:245, c2:16,  c3:6    },
+      { cod:'102',  nom:'ESPARZA CRIST',          placa:'FFU5620', c1:180, c2:20,  c3:2.5  },
+      { cod:'109',  nom:'FONSECA DORIS',          placa:'PAE8641', c1:280, c2:50,  c3:6    },
+      { cod:'103',  nom:'GUIZMAN MAURI',          placa:'PAC3588', c1:280, c2:20,  c3:5    },
+      { cod:'112',  nom:'JARA ANGEL 1',           placa:'PBE3739', c1:280, c2:20,  c3:5    },
+      { cod:'129',  nom:'JARA ANGEL 2',           placa:'PAE3616', c1:350, c2:50,  c3:7.5  },
+      { cod:'126',  nom:'JARA JOSE LUIS',         placa:'PBM9525', c1:245, c2:12,  c3:5    },
+      { cod:'143',  nom:'NUÑEZ ORLANDO',          placa:'PCE6642', c1:280, c2:12,  c3:6    },
+      { cod:'115',  nom:'ORELLANA JOEL',          placa:'KAA8521', c1:350, c2:80,  c3:7.5  },
+      { cod:'176',  nom:'ORELLANA SANTIAGO',      placa:'PCP3630', c1:352, c2:85,  c3:10   },
+      { cod:'182',  nom:'QUISTAL PATRICIO',       placa:'PFU3086', c1:198, c2:16,  c3:3.5  },
+      { cod:'118',  nom:'RIVADENEIRA CRISTIAN',   placa:'PAE6318', c1:245, c2:12,  c3:5    },
+      { cod:'172',  nom:'SANCHEZ LEONARDO',       placa:'PAC3726', c1:null,c2:null,c3:5    },
+      { cod:'121',  nom:'TACIPANATA SANDRA',      placa:'PAE1463', c1:406, c2:null,c3:10   },
+      { cod:'120',  nom:'ZARATE JEFFERSON',       placa:'TDH0432', c1:null,c2:80,  c3:12   }
     ];
 
     /* ★ SÁBADO: media flota sin restricción de pico y placa.
@@ -251,11 +260,20 @@
     function round6(v){ return Math.round(v*1e6)/1e6; }
     function fmtKg(n){ return Math.round(n).toLocaleString('es-EC'); }
     function objVals(o){ return Object.keys(o).map(function(k){ return o[k]; }); }
-    function mananaISO(){ var d=new Date(Date.now()+864e5); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+    function hoyISO(){ var d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+    function mananaISO(){ return sumarDiasISO(hoyISO(), 1); }
+    function fechaCortaPP(iso){ return iso ? iso.slice(8,10) + '/' + iso.slice(5,7) : ''; }
+    /* ★ v3.5: suma N días a una fecha ISO (T12:00 local evita salto de zona) */
+    function sumarDiasISO(fechaISO, n) {
+      if (!fechaISO || !/^\d{4}-\d{2}-\d{2}$/.test(fechaISO)) return fechaISO;
+      var d = new Date(fechaISO + 'T12:00:00');
+      d.setDate(d.getDate() + n);
+      return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    }
     function estado(msg,busy,err){ var el=document.getElementById('estado'); el.className=err?'err':(busy?'busy':''); el.innerHTML=(busy?'<i class="fa-solid fa-circle-notch"></i>':'')+esc(msg); }
 
     /* ================= PICO Y PLACA + FLOTA DEL DÍA ================= */
-    /* P&P del día de la FECHA PLANIFICADA (T12:00 local evita salto UTC) */
+    /* ★ P&P del día de la FECHA DE DESPACHO (datos + 1). */
     function picoYPlaca(fechaISO) {
       if (!fechaISO || !/^\d{4}-\d{2}-\d{2}$/.test(fechaISO)) return { dia: '', dw: null, digitos: null };
       var d = new Date(fechaISO + 'T12:00:00');
@@ -279,9 +297,30 @@
         return FLOTA.filter(function(v){ return FLOTA_SABADO.indexOf(v.cod) !== -1; });
       return FLOTA;
     }
+    /* ★ Chip P&P reactivo: el input es la FECHA DE DATOS (víspera); el
+       despacho y el P&P corresponden a fecha+1. Se actualiza al cambiar
+       la fecha, sin necesidad de regenerar. */
+    function actualizarChipPP() {
+      var fechaDatos = document.getElementById('inpFecha').value || hoyISO();
+      var despacho = sumarDiasISO(fechaDatos, 1);
+      var pp = picoYPlaca(despacho);
+      if (!pp.dia) return; /* fecha inválida: no pintar */
+      var rel = despacho === mananaISO() ? 'ma\u00f1ana' : (despacho === hoyISO() ? 'HOY' : '');
+      var sabTxt = (pp.dw === 6 && FLOTA_SABADO.length) ? ' \u00b7 media flota (' + FLOTA_SABADO.length + ')' : '';
+      var txt = 'Despacho ' + (rel ? rel + ' ' : '') + pp.dia + ' ' + fechaCortaPP(despacho) +
+                ' \u00b7 ' + (pp.digitos ? 'P&P ' + pp.digitos.join(',') : 'sin P&P') + sabTxt +
+                ' (datos ' + fechaCortaPP(fechaDatos) + ')';
+      /* si el plan en pantalla es de otra fecha de datos, avisar que falta regenerar */
+      if (planActual && planActual.fecha && planActual.fecha !== fechaDatos) txt += ' \u2192 regenerar';
+      var chip = document.getElementById('chipPP');
+      chip.textContent = txt;
+      chip.className = 'chip ' + (pp.digitos ? 'c-h' : 'c-pt');
+    }
 
     /* ================= [1] HISTORIAL: codigosUsados/{fecha}/{codRuta}/datosFormulario/{idx} ==
-       El orden de entrega = momento de captura GPS (regla del negocio).        */
+       El orden de entrega = momento de captura GPS (regla del negocio).
+       ★ v3.5: se incluyen capturas con fecha <= fecha de DATOS, porque las
+       capturas del despacho de la víspera se guardan bajo esa misma fecha. */
     function construirHistorial(cuObj, fechas) {
       var hist = [];
       fechas.forEach(function(f) {
@@ -504,8 +543,10 @@
       var clientes = prep.clientes, alertas = prep.alertas.slice();
       var dep = opts.deposito || null;
       var salidaMin = hhmm2min(opts.salida) || salidaEstimada(hist);
-      /* ★ pico y placa del día planificado + flota del día + habituales */
-      var pp = picoYPlaca(opts.fecha);
+      /* ★ v3.5: la fecha del input es la de DATOS (víspera).
+         El despacho real (y el pico y placa) es fecha + 1 día. */
+      var fechaDespacho = sumarDiasISO(opts.fecha, 1);
+      var pp = picoYPlaca(fechaDespacho);
       var flotaDia = flotaDelDia(pp);
       var habituales = habitualesDeHistorial(hist);
 
@@ -554,7 +595,7 @@
 
       /* ================= ★ ASIGNACION DE VEHICULOS REALES =================
          Orden: rutas más pesadas primero. Para cada una, de la flota DEL DÍA
-         (sábado = media flota) y permitida por P&P y no usada:
+         DE DESPACHO (sábado = media flota) y permitida por P&P y no usada:
          1º camión habitual del historial
          2º el de mayor capacidad disponible (c1 de referencia)
          Sin candidatos → queda genérico T# + alerta */
@@ -570,13 +611,13 @@
           pl.conductor = elegido.nom;
           pl.placa = elegido.placa;
         } else {
-          alertas.push('Pico y placa ' + pp.dia + (pp.digitos ? ' (' + pp.digitos.join(',') + ')' : '') + ': sin veh\u00edculos disponibles para ' + pl.ruta);
+          alertas.push('Pico y placa ' + pp.dia + ' ' + fechaCortaPP(fechaDespacho) + (pp.digitos ? ' (' + pp.digitos.join(',') + ')' : '') + ': sin veh\u00edculos disponibles para ' + pl.ruta);
         }
       });
 
-      return { ts: Date.now(), version: 'v3.3-3t-pp', capKg: CAP_KG, salidaEstimada: fmtMin(salidaMin),
+      return { ts: Date.now(), version: 'v3.5-3t-pp', capKg: CAP_KG, salidaEstimada: fmtMin(salidaMin),
         diasHistorial: hist.length, deposito: dep,
-        picoPlaca: pp, alertas: alertas, planes: planes };
+        fechaDespacho: fechaDespacho, picoPlaca: pp, alertas: alertas, planes: planes };
     }
 
     /* ================= FIREBASE: LECTURAS / ESCRITURA ================= */
@@ -612,7 +653,7 @@
     }
     /* 3 lecturas paralelas (tras autenticar): deposito + historial (raiz) + clientes de la fecha */
     function generar() {
-      var fecha = document.getElementById('inpFecha').value || mananaISO();
+      var fecha = document.getElementById('inpFecha').value || hoyISO(); /* ★ fecha de DATOS (víspera) */
       if (!FB_OK) { modoDemo(fecha); return; }
       estado('Autenticando...', true);
       esperarAuth().then(function(ok) {
@@ -627,8 +668,10 @@
         if (!rs) return;
         var dep = normalizarDeposito(rs[0].val());
         var cuObj = rs[1].val() || {};
-        /* solo fechas ANTERIORES a la fecha planificada */
-        var fechasHist = Object.keys(cuObj).sort().filter(function(f){ return f < fecha; });
+        /* ★ v3.5: fechas de captura <= fecha de DATOS — las capturas del
+           despacho de la víspera se guardan bajo la misma fecha de carga
+           y son el dato más reciente para el historial */
+        var fechasHist = Object.keys(cuObj).sort().filter(function(f){ return f <= fecha; });
         var hist = construirHistorial(cuObj, fechasHist);
         var clientes = buscarClientesEnFecha(rs[2].val(), 0);
         if (!clientes || !clientes.length) { estado('La fecha ' + fecha + ' no tiene clientes planificados en rutas/' + fecha, false, true); return; }
@@ -637,7 +680,8 @@
     }
     function guardarPlan() {
       if (!planActual || !db) return;
-      if (!confirm('\u00bfGuardar plan de ' + planActual.fecha + ' en rutas/' + planActual.fecha + '/plan ?')) return;
+      var desp = planActual.fechaDespacho ? ' (despacho ' + planActual.fechaDespacho + ')' : '';
+      if (!confirm('\u00bfGuardar plan de ' + planActual.fecha + desp + ' en rutas/' + planActual.fecha + '/plan ?')) return;
       estado('Guardando...', true);
       esperarAuth().then(function() {
         var limpio = JSON.parse(JSON.stringify(planActual)); /* quita propiedades runtime (_color) */
@@ -692,7 +736,7 @@
     ].map(function(f){ return { clnt:f[0], codc:f[1], lat:f[2], lon:f[3], peso:f[4], ruta:f[5], sector:f[6], horarios:'', prioridad:'' }; });
     function modoDemo(fecha) {
       document.getElementById('demo').style.display = 'inline-flex';
-      ejecutarPlan(fecha || mananaISO(), JSON.parse(JSON.stringify(CLIENTES_DEMO)), [], DEPOSITO_DEMO);
+      ejecutarPlan(fecha || hoyISO(), JSON.parse(JSON.stringify(CLIENTES_DEMO)), [], DEPOSITO_DEMO);
     }
 
     /* ================= RENDER ================= */
@@ -713,23 +757,17 @@
 
     function ejecutarPlan(fecha, clientes, hist, dep) {
       var plan = planificarDia(clientes, hist, { deposito: dep, fecha: fecha });
-      plan.fecha = fecha;
+      plan.fecha = fecha; /* fecha de DATOS (víspera) */
       planActual = plan;
       renderPlan(plan); renderSidebar(plan);
       document.title = 'Plan ' + fecha + ' \u00b7 Planificador';
-      /* ★ chip de pico y placa del día planificado */
-      var pp = plan.picoPlaca;
-      var ppTxt = pp.digitos ? ('P&P ' + pp.digitos.join(',')) : 'sin P&P';
-      var sabTxt = (pp.dw === 6 && FLOTA_SABADO.length) ? ' \u00b7 media flota (' + FLOTA_SABADO.length + ')' : '';
-      var chip = document.getElementById('chipPP');
-      chip.textContent = pp.dia + ' \u00b7 ' + ppTxt + sabTxt;
-      chip.className = 'chip ' + (pp.digitos ? 'c-h' : 'c-pt');
+      actualizarChipPP(); /* ★ chip coherente: despacho = datos + 1 */
       var totV = plan.planes.length, totC = plan.planes.reduce(function(s,p){ return s+p.paradas; },0);
       var totKg = plan.planes.reduce(function(s,p){ return s+p.pesoTotal; },0);
       var totKm = plan.planes.reduce(function(s,p){ return s+p.kmTotal; },0);
       document.getElementById('btnSave').disabled = !FB_OK;
       document.getElementById('btnCopy').disabled = false;
-      estado('Plan: ' + totV + ' veh\u00edculo(s), ' + totC + ' paradas, ' + fmtKg(totKg) + ' kg, ' + totKm + ' km' + (hist.length ? ' \u00b7 historial ' + hist.length + ' d\u00edas' : ' \u00b7 sin historial'));
+      estado('Despacho ' + plan.fechaDespacho + ': ' + totV + ' veh\u00edculo(s), ' + totC + ' paradas, ' + fmtKg(totKg) + ' kg, ' + totKm + ' km' + (hist.length ? ' \u00b7 historial ' + hist.length + ' d\u00edas' : ' \u00b7 sin historial'));
     }
 
     function popupCliente(pl, d, prev, col) {
@@ -760,7 +798,7 @@
         var dm = L.marker([plan.deposito.lat, plan.deposito.lon], {
           icon: L.divIcon({ className:'mk', html:'<div class="mk-dep"><i class="fa-solid fa-warehouse"></i></div>', iconSize:[34,34], iconAnchor:[17,17], popupAnchor:[0,-18] })
         });
-        dm.bindPopup('<div class="pp"><div class="pp-num">Dep\u00f3sito</div><div class="pp-nombre">Salida del plan</div><div class="pp-row"><i class="fa-regular fa-clock"></i>Salida estimada ' + plan.salidaEstimada + '</div></div>');
+        dm.bindPopup('<div class="pp"><div class="pp-num">Dep\u00f3sito</div><div class="pp-nombre">Salida del plan</div><div class="pp-row"><i class="fa-regular fa-clock"></i>Salida estimada ' + plan.salidaEstimada + ' (' + esc(plan.fechaDespacho || '') + ')</div></div>');
         dm.addTo(gd); gd.addTo(map);
       }
       plan.planes.forEach(function(pl, pi) {
@@ -783,7 +821,7 @@
     }
 
     function renderSidebar(plan) {
-      document.getElementById('sbTitulo').textContent = 'Plan ' + plan.fecha;
+      document.getElementById('sbTitulo').textContent = 'Plan ' + plan.fecha + ' \u2192 despacho ' + (plan.fechaDespacho || '');
       var totC = plan.planes.reduce(function(s,p){ return s+p.paradas; },0);
       var totKg = plan.planes.reduce(function(s,p){ return s+p.pesoTotal; },0);
       var totKm = plan.planes.reduce(function(s,p){ return s+p.kmTotal; },0);
@@ -801,7 +839,7 @@
         al.innerHTML = plan.alertas.map(function(a){ return '<div><i class="fa-solid fa-triangle-exclamation"></i> ' + esc(a) + '</div>'; }).join('');
       } else { al.style.display = 'none'; al.innerHTML = ''; }
 
-      /* ★ flota del día (sábado = media flota si está definida) */
+      /* ★ flota del día de despacho (sábado = media flota si está definida) */
       var fDia = flotaDelDia(pp);
       var usados = {};
       plan.planes.forEach(function(pl){ if (pl.transporte) usados[pl.transporte] = true; });
@@ -812,10 +850,11 @@
         var ppBad = vAct && !vehiculoPermitido(vAct, pp);
         html += '<div class="sb-plan" data-pi="' + pi + '">';
         html += '<div class="sb-bar" style="background:' + pl._color + '"></div>';
-        html += '<div class="sb-content"><div class="sb-top"><span class="sb-codigo" style="color:' + pl._color + '">' + esc(pl.transporte) + ' \u00b7 ' + esc(pl.ruta) + (pl.dedicado ? ' \u00b7 dedicado' : '') + '</span><span class="sb-badge ' + (pl.dedicado ? 'bd' : 'bp') + '">' + pl.utilizacion + '%' + (pl.viajes > 1 ? ' \u00b7 ' + pl.viajes + ' viajes' : '') + '</span></div>';
-        html += '<div class="sb-meta"><i class="fa-solid fa-truck"></i>' + esc(pl.conductor || 'sin asignar') + (pl.placa ? ' \u00b7 ' + esc(pl.placa) : '') + (ppBad ? ' <span style="color:#f87171;font-weight:700">\ud83d\udeabP&P</span>' : '') + '</div>';
-        /* ★ selector de camión bien visible: etiqueta CAMIÓN + dropdown */
+        html += '<div class="sb-content">';
+        html += '<div class="sb-top"><span class="sb-codigo" style="color:' + pl._color + '">' + esc(pl.transporte) + ' \u00b7 ' + esc(pl.ruta) + (pl.dedicado ? ' \u00b7 dedicado' : '') + (ppBad ? ' <span style="color:#f87171">\ud83d\udeabP&P</span>' : '') + '</span><span class="sb-badge ' + (pl.dedicado ? 'bd' : 'bp') + '">' + pl.utilizacion + '%' + (pl.viajes > 1 ? ' \u00b7 ' + pl.viajes + 'v' : '') + '</span></div>';
+        /* ★ selector de camión: etiqueta CAMIÓN + dropdown */
         html += '<div class="sb-veh"><span class="veh-lbl"><i class="fa-solid fa-truck"></i>Camión</span><select class="veh-sel" data-pi="' + pi + '" title="Cambiar transportista de esta ruta">';
+        if (!vAct) html += '<option value="__na__" selected>\u2014 ' + esc(pl.transporte) + ' sin asignar \u2014</option>';
         var lista = fDia.slice();
         if (vAct && !lista.some(function(x){ return x.cod === vAct.cod; })) lista.unshift(vAct);
         lista.forEach(function(v) {
@@ -826,7 +865,7 @@
           html += '<option value="' + esc(v.cod) + '"' + (v.cod === pl.transporte ? ' selected' : '') + '>' + tag + v.cod + ' ' + esc(v.nom) + ' (' + esc(v.placa) + ')</option>';
         });
         html += '</select></div>';
-        html += '<div class="sb-meta"><i class="fa-solid fa-weight-hanging"></i>' + fmtKg(pl.pesoTotal) + ' kg<i class="fa-solid fa-location-dot"></i>' + pl.paradas + '<i class="fa-solid fa-road"></i>' + pl.kmTotal + ' km<i class="fa-regular fa-clock"></i>fin ~' + pl.finEstimado + '</div>';
+        html += '<div class="sb-meta"><i class="fa-solid fa-weight-hanging"></i>' + fmtKg(pl.pesoTotal) + ' kg &middot; <i class="fa-solid fa-location-dot"></i>' + pl.paradas + ' &middot; <i class="fa-solid fa-road"></i>' + pl.kmTotal + ' km &middot; <i class="fa-regular fa-clock"></i>fin ~' + pl.finEstimado + '</div>';
         html += '<div class="sb-paradas">';
         pl.secuencia.forEach(function(d) {
           html += '<div class="sb-parada" data-key="' + pi + ':' + d.orden + '">';
@@ -866,9 +905,9 @@
     }
     /* ★ Reasignación manual con swap: si el vehículo ya tenía otra ruta,
        los dos planes intercambian el vehículo. Avisa si viola P&P o
-       no pertenece a la flota del día. */
+       no pertenece a la flota del día de despacho. */
     function cambiarVehiculo(pi, codNuevo) {
-      if (!planActual) return;
+      if (!planActual || codNuevo === '__na__') return;
       var v = FLOTA.filter(function(x){ return x.cod === codNuevo; })[0];
       if (!v) return;
       var pp = planActual.picoPlaca;
@@ -939,7 +978,9 @@
     /* ================= INIT ================= */
     document.addEventListener('DOMContentLoaded', function() {
       initMapa();
-      document.getElementById('inpFecha').value = mananaISO();
+      /* ★ v3.5: el input es la FECHA DE DATOS (víspera). Por defecto HOY:
+         los datos cargados hoy en rutas/hoy se despachan MAÑANA. */
+      document.getElementById('inpFecha').value = hoyISO();
       /* ★ fecha sugerida desde el mapamonitor (botón "Planificar entregas") */
       try {
         var fSug = localStorage.getItem('plan_fecha_sugerida');
@@ -948,8 +989,12 @@
           localStorage.removeItem('plan_fecha_sugerida');
         }
       } catch (e) {}
+      /* ★ P&P reactivo: al cambiar la fecha de datos, el chip recalcula
+         el despacho (fecha+1) y su pico y placa al instante */
+      document.getElementById('inpFecha').addEventListener('change', actualizarChipPP);
+      actualizarChipPP();
       if (FB_OK) generar();
-      else modoDemo(mananaISO());
+      else modoDemo(hoyISO());
     });
   </script>
 </body>
