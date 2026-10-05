@@ -9,9 +9,10 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <!-- ★ P-15: Firebase para leer el plan del planificador (rutas/{fecha}/plan) -->
+  <!-- ★ P-15: Firebase (App + Database + Auth para sesión anónima) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'DM Sans',sans-serif;background:#08090d;color:#e4e8f1;height:100vh;overflow:hidden;display:flex}
@@ -35,23 +36,12 @@
     .sb-stat.s-plan{background:rgba(94,234,212,.08);color:#5eead4;border:1px solid rgba(94,234,212,.25)}
     .sb-stat.s-planb{background:rgba(148,163,184,.08);color:#94a3b8;border:1px solid rgba(148,163,184,.25)}
     .frescura{display:none;margin-top:8px;font-size:10.5px;font-weight:700;color:#fbbf24;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:6px 10px;align-items:center;gap:6px}
-    /* ★ dos botones: ajustar vista + etiquetas de sector */
     .sb-btns{display:flex;gap:6px;margin-top:10px}
-    <div class="sb-btns">
-        <button class="sb-btn-fit" onclick="fitAll()"><i class="fa-solid fa-expand"></i> Ajustar vista</button>
-        <button class="sb-btn-fit on" id="btnEtiquetas" onclick="toggleEtiquetas()" title="Mostrar/ocultar leyenda de sector junto a cada punto"><i class="fa-solid fa-tags"></i> Sectores</button>
-        <button class="sb-btn-fit on" id="btnPlan" onclick="togglePlan()" style="display:none" title="Mostrar/ocultar paradas planificadas aún sin captura"><i class="fa-solid fa-clipboard-list"></i> Plan</button>
-      </div>
-      <!-- ★ Enlace al planificador -->
-      <div class="sb-btns">
-        <a class="sb-btn-fit sb-btn-planif" href="#" onclick="abrirPlanificador(); return false;" title="Abrir el planificador de entregas">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> Planificar entregas
-        </a>
-    </div>
-    .sb-btn-fit{flex:1;padding:8px;border-radius:8px;border:1px solid #22273a;background:#14171f;color:#8891a8;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+    .sb-btn-fit{flex:1;padding:8px;border-radius:8px;border:1px solid #22273a;background:#14171f;color:#8891a8;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
     .sb-btn-fit:hover{border-color:#e8913a;color:#e8913a}
     .sb-btn-fit.on{border-color:rgba(232,145,58,.4);color:#e8913a;background:rgba(232,145,58,.08)}
-    .sb-btn-planif{border-color:rgba(232,145,58,.35);color:#e8913a;background:rgba(232,145,58,.05);text-decoration:none}
+    /* ★ P-15: botón plan + enlace al planificador */
+    .sb-btn-planif{border-color:rgba(232,145,58,.35);color:#e8913a;background:rgba(232,145,58,.05)}
     .sb-btn-planif:hover{background:rgba(232,145,58,.14);border-color:#e8913a}
     .sb-list{flex:1;overflow-y:auto;padding:8px}
     .sb-item{display:flex;align-items:stretch;border-radius:10px;margin-bottom:6px;overflow:hidden;border:1px solid #22273a;cursor:pointer;transition:all .2s;background:#14171f}
@@ -93,14 +83,14 @@
     @media (prefers-reduced-motion:reduce){.mk-sin-origen .mk-dot::before,.mk-sin-origen .mk-dot::after,.mk-actual .mk-dot::before{animation:none}}
     .mk-gap{width:26px;height:26px;border-radius:50%;background:#f87171;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.5);border:2px solid #fff;cursor:pointer;transition:transform .2s}
     .mk-gap:hover{transform:scale(1.25)}
+    /* ★ P-15: marcador fantasma de parada planificada no ejecutada */
+    .mk-plan-dot{width:26px;height:26px;border-radius:50%;border:2px dashed #8891a8;background:rgba(14,16,24,.85);color:#8891a8;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer;transition:transform .2s}
+    .mk-plan-dot:hover{transform:scale(1.25);color:#e4e8f1;border-color:#e4e8f1}
     /* ★ Leyenda de sector: etiqueta permanente discreta junto al punto */
     .lbl-sector{background:rgba(14,16,24,.82) !important;border:1px solid #22273a !important;color:#8891a8 !important;font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;padding:1px 6px !important;border-radius:5px !important;box-shadow:none !important}
     .lbl-sector::before{display:none !important} /* sin flecha del tooltip */
     .sin-etiquetas .lbl-sector{display:none}
     .zoom-lejos .lbl-sector{display:none} /* auto-ocultar al alejar mucho */
-    /* ★ P-15: marcador fantasma de parada planificada no ejecutada */
-    .mk-plan-dot{width:26px;height:26px;border-radius:50%;border:2px dashed #8891a8;background:rgba(14,16,24,.85);color:#8891a8;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer;transition:transform .2s}
-    .mk-plan-dot:hover{transform:scale(1.25);color:#e4e8f1;border-color:#e4e8f1}
     .leaflet-popup-content-wrapper{background:#14171f !important;color:#e4e8f1 !important;border:1px solid #22273a !important;border-radius:12px !important;box-shadow:0 8px 28px rgba(0,0,0,.5) !important;padding:0 !important}
     .leaflet-popup-tip{background:#14171f !important;border:1px solid #22273a !important;border-top:none !important;border-left:none !important}
     .leaflet-popup-close-button{color:#565e74 !important;font-size:18px !important;top:6px !important;right:8px !important}
@@ -137,6 +127,12 @@
         <button class="sb-btn-fit on" id="btnEtiquetas" onclick="toggleEtiquetas()" title="Mostrar/ocultar leyenda de sector junto a cada punto"><i class="fa-solid fa-tags"></i> Sectores</button>
         <button class="sb-btn-fit on" id="btnPlan" onclick="togglePlan()" style="display:none" title="Mostrar/ocultar paradas planificadas aún sin captura"><i class="fa-solid fa-clipboard-list"></i> Plan</button>
       </div>
+      <!-- ★ P-15: enlace al planificador (pestaña nueva para no romper el puente postMessage) -->
+      <div class="sb-btns">
+        <a class="sb-btn-fit sb-btn-planif" href="#" onclick="abrirPlanificador(); return false;" title="Abrir el planificador de entregas">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Planificar entregas
+        </a>
+      </div>
     </div>
     <div class="sb-list" id="sbList"></div>
   </aside>
@@ -160,24 +156,40 @@
          recargar (mantiene zoom, popup abierto y seleccion)
        - Tick interno de 60s: refresca "inactivo X min" localmente
        - Leyenda de sector: tooltip discreto por punto (toggle)
-       ★ P-15 PLAN vs EJECUCION:
-         - Lee rutas/{fecha}/plan desde Firebase (planificador)
+       ★ P-15 PLAN vs EJECUCION (Firebase):
+         - Lee rutas/{fecha}/plan (generado por planificador.html)
          - Matching punto capturado -> parada planificada
            (codc -> nombre normalizado -> proximidad < 200 m)
          - Orden real = rank de captura GPS dentro de la ruta
          - Estados: en secuencia / fuera de secuencia / sin plan
          - Diff ETA plan vs hora real de llegada
          - Paradas sin captura: marcadores fantasma (toggle "Plan")
+       ★ Autenticación anónima (reglas: auth != null)
        ============================================================ */
 
     /* ================= ★ P-15: FIREBASE (misma config que el planificador) ================= */
     var FIREBASE_CONFIG = {
-      apiKey: "", authDomain: "", databaseURL: "",   /* ← COMPLETAR (databaseURL obligatoria) */
-      projectId: "", storageBucket: "", messagingSenderId: "", appId: ""
+      apiKey: "AIzaSyCrnroA2yd2coEVyn6Jm-q8sM6rvOb6Y3k", authDomain: "datos-formulario-f3cde.firebaseapp.com", databaseURL: "https://datos-formulario-f3cde-default-rtdb.firebaseio.com",   /* ← COMPLETAR (databaseURL obligatoria) */
+      projectId: "datos-formulario-f3cde", storageBucket: "datos-formulario-f3cde.firebasestorage.app", messagingSenderId: "1060204671476", appId: "1:1060204671476:web:a476539fa122fd04fa89a1"
     };
     var FB_OK = !!(FIREBASE_CONFIG.databaseURL);
     var fb = null;
-    if (FB_OK) { try { firebase.initializeApp(FIREBASE_CONFIG); fb = firebase.database(); } catch (e) { FB_OK = false; } }
+    if (FB_OK) {
+      try {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        /* ★ sesión anónima: satisface reglas auth != null (persistente entre recargas) */
+        firebase.auth().signInAnonymously().catch(function(e) { console.error('Auth:', e.message); });
+        fb = firebase.database();
+      } catch (e) { FB_OK = false; }
+    }
+    /* ★ espera a que la sesión anónima exista antes de leer */
+    function esperarAuth() {
+      return new Promise(function(resolve) {
+        if (!FB_OK) return resolve(false);
+        if (firebase.auth().currentUser) return resolve(true);
+        var off = firebase.auth().onAuthStateChanged(function(u) { if (u) { off(); resolve(true); } });
+      });
+    }
 
     var U = { desvOk: 100, desvAl: 300, inactOk: 30, inactAl: 60, saltoMin: 60 };
     var T = [];
@@ -191,14 +203,13 @@
     var etiquetasOn = true;   /* ★ leyenda de sector */
 
     /* ★ P-15: estado del plan */
-    var planIdx = null;       /* índice del plan cargado (porCliente/porNombre/porRuta/paradas) */
+    var planIdx = null;       /* índice del plan cargado */
     var cruceActual = null;   /* último cruce plan vs ejecución */
     var mostrarPlan = true;   /* toggle marcadores fantasma del plan */
 
     /* ★ #4: ocultos persistentes */
     try { ocultos = JSON.parse(localStorage.getItem('mapa_ocultos') || '{}'); } catch (e) { ocultos = {}; }
     try { etiquetasOn = localStorage.getItem('mapa_etiquetas') !== '0'; } catch (e) {}
-    /* ★ P-15: preferencia toggle plan */
     try { mostrarPlan = localStorage.getItem('mapa_plan') !== '0'; } catch (e) {}
 
     function esc(s) {
@@ -269,7 +280,7 @@
       });
     }
 
-    /* ================= ★ P-15: CARGA DEL PLAN ================= */
+    /* ================= ★ P-15: CARGA E INDEXACIÓN DEL PLAN ================= */
     function construirIndicePlan(plan) {
       var idx = { porCliente: {}, porNombre: {}, porRuta: {}, paradas: [] };
       (plan.planes || []).forEach(function(pl) {
@@ -318,14 +329,14 @@
 
     /* Cruce plan vs ejecución sobre T (transportes del payload):
        - marca p._plan (parada planificada) y p._planReal (rank de captura en su ruta)
-       - devuelve resumen por transporte + global + fantasmas (paradas sin captura ni pendiente) */
+       - resumen por transporte + global + fantasmas (paradas sin captura ni pendiente) */
     function computarCruce(transportes) {
       if (!planIdx) return null;
       var res = { porT: {}, global: { ok: 0, fuera: 0, sinPlan: 0, plan: planIdx.paradas.length }, fantasmas: [], fecha: planIdx.fecha };
       var usados = {}, seenRuta = {};
       (transportes || []).forEach(function(t) { res.porT[t.codigo] = { ok: 0, fuera: 0, sinPlan: 0 }; });
 
-      /* [A] matchear capturas (orden por t) consumiendo paradas del plan */
+      /* [A] matchear capturas (orden por t), consumiendo cada parada del plan una vez */
       (transportes || []).forEach(function(t) {
         var caps = (t.puntos || []).filter(function(p) { return p && !p.pendiente && p.t != null; });
         caps.sort(function(a, b) { return a.t - b.t; });
@@ -335,7 +346,7 @@
           if (!ent) { res.porT[t.codigo].sinPlan++; res.global.sinPlan++; return; }
           var key = ent.ruta + '#' + ent.orden;
           p._plan = ent;
-          if (seenRuta[key]) { /* re-captura u oculto compartido: no duplica rank */ res.porT[t.codigo].sinPlan++; res.global.sinPlan++; return; }
+          if (seenRuta[key]) { /* re-captura: no duplica */ res.porT[t.codigo].sinPlan++; res.global.sinPlan++; return; }
           seenRuta[key] = true; usados[key] = true;
         });
       });
@@ -378,12 +389,16 @@
 
     function cargarPlan() {
       if (!FB_OK) return;
-      fb.ref('rutas').orderByKey().limitToLast(6).once('value').then(function(snap) {
+      esperarAuth().then(function(ok) {
+        if (!ok) return null;
+        return fb.ref('rutas').orderByKey().limitToLast(6).once('value');
+      }).then(function(snap) {
+        if (!snap) return;
         var rutas = snap.val() || {};
         var keys = Object.keys(rutas).filter(function(f) {
           return /^\d{4}-\d{2}-\d{2}$/.test(f) && rutas[f] && rutas[f].plan;
         }).sort();
-        if (!keys.length) { planIdx = null; return; }
+        if (!keys.length) return;
         var hoy = hoyISO();
         var pasadas = keys.filter(function(f) { return f <= hoy; });
         /* preferencia: plan más reciente ya iniciado; fallback: el más reciente */
@@ -406,6 +421,13 @@
       b.classList.toggle('on', mostrarPlan);
       try { localStorage.setItem('mapa_plan', mostrarPlan ? '1' : '0'); } catch (e) {}
       if (cruceActual) renderPlanOverlay(cruceActual);
+    }
+
+    /* ★ Enlace al planificador: abre en pestaña nueva y le pasa la fecha
+       del plan activo (para re-planificar la misma fecha con un clic) */
+    function abrirPlanificador() {
+      try { if (planIdx && planIdx.fecha) localStorage.setItem('plan_fecha_sugerida', planIdx.fecha); } catch (e) {}
+      window.open('planificador.html', '_blank');
     }
 
     /* Overlay del plan: línea punteada de la secuencia planificada por ruta
@@ -558,9 +580,7 @@
             if (esPen) nPenT++;
             var col = t.color;
             var num = esPen ? '?' : (coords.length + 1);
-            /* ★ clases: sinOrigen tiene prioridad sobre el pulso del punto actual
-               (ambos usan ::before/::after del .mk-dot; el halo dorado ya es
-               suficientemente llamativo por si solo) */
+            /* ★ clases: sinOrigen tiene prioridad sobre el pulso del punto actual */
             var esActual = (!esPen && !p.sinOrigen && tActual != null && p.t === tActual);
             /* ★ P-15: fuera de secuencia vs plan */
             var esFuera = (p._plan && p._planReal != null && p._planReal !== p._plan.orden);
@@ -574,7 +594,7 @@
             });
             var m = L.marker([p.lat, p.lng], { icon: icon });
 
-            /* ★ P-15: filas del plan para el popup (compartidas por pendiente/capturado) */
+            /* ★ P-15: filas del plan para el popup (compartidas pendiente/capturado) */
             function filasPlan() {
               var fx = '';
               if (p._plan) {
@@ -787,12 +807,7 @@
       b.innerHTML = '<i class="fa-solid fa-tags"></i> Sectores';
       try { localStorage.setItem('mapa_etiquetas', etiquetasOn ? '1' : '0'); } catch (e) {}
     }
-    /* ★ Enlace al planificador: abre en pestaña nueva y le pasa la fecha
-       del plan activo (para re-planificar la misma fecha con un clic) */
-    function abrirPlanificador() {
-      try { if (planIdx && planIdx.fecha) localStorage.setItem('plan_fecha_sugerida', planIdx.fecha); } catch (e) {}
-      window.open('planificador.html', '_blank');
-    }
+
     /* ===== INTERACCIONES SIDEBAR ===== */
     function zoomT(c) {
       var g = groups[c];
