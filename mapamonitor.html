@@ -37,9 +37,22 @@
     .frescura{display:none;margin-top:8px;font-size:10.5px;font-weight:700;color:#fbbf24;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:6px 10px;align-items:center;gap:6px}
     /* ★ dos botones: ajustar vista + etiquetas de sector */
     .sb-btns{display:flex;gap:6px;margin-top:10px}
+    <div class="sb-btns">
+        <button class="sb-btn-fit" onclick="fitAll()"><i class="fa-solid fa-expand"></i> Ajustar vista</button>
+        <button class="sb-btn-fit on" id="btnEtiquetas" onclick="toggleEtiquetas()" title="Mostrar/ocultar leyenda de sector junto a cada punto"><i class="fa-solid fa-tags"></i> Sectores</button>
+        <button class="sb-btn-fit on" id="btnPlan" onclick="togglePlan()" style="display:none" title="Mostrar/ocultar paradas planificadas aún sin captura"><i class="fa-solid fa-clipboard-list"></i> Plan</button>
+      </div>
+      <!-- ★ Enlace al planificador -->
+      <div class="sb-btns">
+        <a class="sb-btn-fit sb-btn-planif" href="#" onclick="abrirPlanificador(); return false;" title="Abrir el planificador de entregas">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Planificar entregas
+        </a>
+    </div>
     .sb-btn-fit{flex:1;padding:8px;border-radius:8px;border:1px solid #22273a;background:#14171f;color:#8891a8;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
     .sb-btn-fit:hover{border-color:#e8913a;color:#e8913a}
     .sb-btn-fit.on{border-color:rgba(232,145,58,.4);color:#e8913a;background:rgba(232,145,58,.08)}
+    .sb-btn-planif{border-color:rgba(232,145,58,.35);color:#e8913a;background:rgba(232,145,58,.05);text-decoration:none}
+    .sb-btn-planif:hover{background:rgba(232,145,58,.14);border-color:#e8913a}
     .sb-list{flex:1;overflow-y:auto;padding:8px}
     .sb-item{display:flex;align-items:stretch;border-radius:10px;margin-bottom:6px;overflow:hidden;border:1px solid #22273a;cursor:pointer;transition:all .2s;background:#14171f}
     .sb-item:hover{border-color:#333a52;background:#191d28}
@@ -774,7 +787,12 @@
       b.innerHTML = '<i class="fa-solid fa-tags"></i> Sectores';
       try { localStorage.setItem('mapa_etiquetas', etiquetasOn ? '1' : '0'); } catch (e) {}
     }
-
+    /* ★ Enlace al planificador: abre en pestaña nueva y le pasa la fecha
+       del plan activo (para re-planificar la misma fecha con un clic) */
+    function abrirPlanificador() {
+      try { if (planIdx && planIdx.fecha) localStorage.setItem('plan_fecha_sugerida', planIdx.fecha); } catch (e) {}
+      window.open('planificador.html', '_blank');
+    }
     /* ===== INTERACCIONES SIDEBAR ===== */
     function zoomT(c) {
       var g = groups[c];
