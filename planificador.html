@@ -29,6 +29,10 @@
     .tb-btn.primary{border-color:rgba(232,145,58,.5);color:#e8913a;background:rgba(232,145,58,.08)}
     .tb-btn.primary:hover{background:rgba(232,145,58,.16)}
     .tb-btn:disabled{opacity:.4;cursor:not-allowed}
+    .chip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px}
+    .c-h{background:rgba(255,209,102,.1);color:#ffd166;border:1px solid rgba(255,209,102,.25)}
+    .c-pt{background:rgba(52,211,153,.1);color:#34d399;border:1px solid rgba(52,211,153,.2)}
+    #chipPP{padding:6px 10px}
     #demo{display:none;background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.3);color:#ffd166;font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px}
     #estado{font-size:11px;color:#8891a8;margin-left:auto;display:flex;align-items:center;gap:6px}
     #estado.err{color:#f87171}
@@ -41,12 +45,9 @@
     .sb-head h2{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px}
     .sb-head h2 i{color:#e8913a;font-size:12px}
     .sb-chips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-    .chip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px}
     .c-tr{background:rgba(232,145,58,.1);color:#e8913a;border:1px solid rgba(232,145,58,.2)}
-    .c-pt{background:rgba(52,211,153,.1);color:#34d399;border:1px solid rgba(52,211,153,.2)}
     .c-kg{background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.2)}
     .c-km{background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.2)}
-    .c-h{background:rgba(255,209,102,.1);color:#ffd166;border:1px solid rgba(255,209,102,.25)}
     .sb-btns{display:flex;gap:6px;margin-top:8px}
     .sb-btn-fit{flex:1;padding:7px;border-radius:8px;border:1px solid #22273a;background:#14171f;color:#8891a8;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
     .sb-btn-fit:hover{border-color:#e8913a;color:#e8913a}
@@ -65,6 +66,9 @@
     .bd{background:rgba(255,209,102,.1);color:#ffd166;border:1px solid rgba(255,209,102,.25)}
     .sb-meta{font-size:11px;color:#565e74}
     .sb-meta i{font-size:10px;margin:0 3px 0 6px}
+    .sb-veh{margin-top:6px}
+    .veh-sel{width:100%;background:#0e1018;border:1px solid #22273a;color:#e4e8f1;border-radius:7px;padding:5px 7px;font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:600;color-scheme:dark;cursor:pointer}
+    .veh-sel:hover{border-color:#e8913a}
     .sb-paradas{display:none;margin-top:8px;border-top:1px solid #22273a;padding-top:6px}
     .sb-plan.open .sb-paradas{display:block}
     .sb-parada{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:7px;cursor:pointer}
@@ -107,6 +111,7 @@
   <header id="topbar">
     <span class="tb-title"><i class="fa-solid fa-route"></i> Planificador de entregas</span>
     <input type="date" id="inpFecha" class="tb-fecha">
+    <span id="chipPP" class="chip c-h"></span>
     <button class="tb-btn primary" id="btnGen" onclick="generar()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generar plan</button>
     <button class="tb-btn" id="btnSave" onclick="guardarPlan()" disabled><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
     <button class="tb-btn" id="btnCopy" onclick="copiarJSON()" disabled><i class="fa-solid fa-copy"></i> JSON</button>
@@ -134,7 +139,7 @@
 
   <script>
     /* =====================================================================
-       PLANIFICADOR DE ENTREGAS v3.1
+       PLANIFICADOR DE ENTREGAS v3.3
        Estructura Firebase:
          raiz/codigosUsados/{fecha}/{codRuta}/datosFormulario/{idx}  ← historial
          raiz/rutas/deposito                                          ← salida (typo "lat:" manejado)
@@ -145,9 +150,12 @@
          - Capacidad única 3 t por vehículo
          - Cliente > 3 t = vehículo dedicado con N viajes al mismo punto
          - Hora local del navegador (Ecuador)
-       Autenticación:
-         - Sesión anónima automática (reglas: auth != null)
-         - esperarAuth() evita permission_denied en la primera carga
+       ★ Pico y placa (Quito) según la FECHA PLANIFICADA:
+         Lunes 1-2 · Martes 3-4 · Miércoles 5-6 · Jueves 7-8 · Viernes 9-0
+         Sábado: media flota sin restricción · Domingo: sin restricción
+       ★ Asignación de vehículos reales:
+         1º camión habitual del historial → 2º mayor capacidad disponible
+         + reasignación manual por select con intercambio automático
        ===================================================================== */
 
     /* ================= CONFIGURACIÓN ================= */
@@ -163,6 +171,46 @@
     /* Override manual para clientes sin GPS válido (prioridad máxima).
        Ej: 'PN0001799': { lat: -0.7012, lon: -78.4455 } */
     var COORDS_MANUALES = { };
+
+    /* ================= FLOTA =================
+       c1/c2/c3 = capacidades originales de la tabla (no se usan con CAP_KG fijo,
+       quedan de referencia). Corrección aplicada: ORELLANA SANTI = 176. */
+    var FLOTA = [
+      { cod:'101',  nom:'ALMEIDA JULIO 1',  placa:'FAC5418', c1:352, c2:50, c3:4    },
+      { cod:'141',  nom:'ALMEIDA JULIO 2',  placa:'FAC5512', c1:308, c2:50, c3:5    },
+      { cod:'106',  nom:'ALTAMIRANO CE',    placa:'PAA3936', c1:352, c2:85, c3:10   },
+      { cod:'187',  nom:'ARTEAGA DIANA',    placa:'NAA0036', c1:352, c2:85, c3:10   },
+      { cod:'127',  nom:'ARTEAGA S. (CA)',  placa:'PFH5919', c1:24,  c2:0,  c3:0.6  },
+      { cod:'105',  nom:'ESQUEL UIS (CA)',  placa:'PAA3836', c1:343, c2:16, c3:7.5  },
+      { cod:'144',  nom:'CARDENAS DAN',     placa:'GSO165',  c1:420, c2:85, c3:12   },
+      { cod:'123',  nom:'CHACON FREDDY',    placa:'FZQ0863', c1:352, c2:85, c3:10   },
+      { cod:'107',  nom:'DUCHAN JAVIER',    placa:'FAC2514', c1:355, c2:85, c3:10   },
+      { cod:'119',  nom:'DELA CRUZ JOR',    placa:'PCN3220', c1:245, c2:16, c3:6    },
+      { cod:'102',  nom:'ESPARZA CRIST',    placa:'FFU5620', c1:180, c2:20, c3:2.5  },
+      { cod:'109',  nom:'FONSECA DORIS',    placa:'PAE8641', c1:280, c2:50, c3:6    },
+      { cod:'103',  nom:'GUIZMAN MAURI',    placa:'PAC3588', c1:280, c2:20, c3:5    },
+      { cod:'112',  nom:'JARA ANGEL 1',     placa:'PBE3739', c1:280, c2:20, c3:5    },
+      { cod:'129',  nom:'JARA ANGEL 2',     placa:'PAE3616', c1:350, c2:50, c3:7.5  },
+      { cod:'126',  nom:'JARA JOSE LUIS',   placa:'PBM9525', c1:245, c2:12, c3:5    },
+      { cod:'143',  nom:'NUÑEZ ORLAND',     placa:'PCE6642', c1:280, c2:12, c3:6    },
+      { cod:'115',  nom:'ORELLANA JOEL',    placa:'KAA8521', c1:350, c2:80, c3:7.5  },
+      { cod:'176',  nom:'ORELLANA SANTI',   placa:'PCP3630', c1:352, c2:85, c3:10   },
+      { cod:'182',  nom:'QUISTAL PATRIC',   placa:'PFU3086', c1:198, c2:16, c3:3.5  },
+      { cod:'118',  nom:'RIVADENEIRA CF',   placa:'PAE6318', c1:245, c2:12, c3:5    },
+      { cod:'172',  nom:'SANCHEZ LEON',     placa:'PAC3726', c1:null,c2:null,c3:5    },
+      { cod:'121',  nom:'TACIFAMATA SAN',   placa:'PAE1463', c1:406, c2:null,c3:10   },
+      { cod:'120',  nom:'ZARATE EFFERS',    placa:'TDH0432', c1:null,c2:80, c3:12   }
+    ];
+
+    /* ★ SÁBADO: media flota sin restricción de pico y placa.
+       Completa con los CÓDIGOS de los camiones que trabajan sábado.
+       Si queda vacío [], el sábado usa toda la flota (sin filtro). */
+    var FLOTA_SABADO = [ /* ej: ['101','119','176','144'] */ ];
+
+    var DIAS_SEM = ['Domingo','Lunes','Martes','Mi\u00e9rcoles','Jueves','Viernes','S\u00e1bado'];
+    /* Quito: Lunes 1-2, Martes 3-4, Miércoles 5-6, Jueves 7-8, Viernes 9-0.
+       Sábado (6) y domingo (0): sin restricción (digitos = null). */
+    var PP_MAPA = { 1:[1,2], 2:[3,4], 3:[5,6], 4:[7,8], 5:[9,0] };
 
     /* ================= FIREBASE + AUTH ANÓNIMA ================= */
     var FB_OK = !!(FIREBASE_CONFIG.databaseURL);
@@ -201,8 +249,33 @@
     function mananaISO(){ var d=new Date(Date.now()+864e5); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
     function estado(msg,busy,err){ var el=document.getElementById('estado'); el.className=err?'err':(busy?'busy':''); el.innerHTML=(busy?'<i class="fa-solid fa-circle-notch"></i>':'')+esc(msg); }
 
+    /* ================= PICO Y PLACA + FLOTA DEL DÍA ================= */
+    /* P&P del día de la FECHA PLANIFICADA (T12:00 local evita salto UTC) */
+    function picoYPlaca(fechaISO) {
+      if (!fechaISO || !/^\d{4}-\d{2}-\d{2}$/.test(fechaISO)) return { dia: '', dw: null, digitos: null };
+      var d = new Date(fechaISO + 'T12:00:00');
+      var dw = d.getDay();
+      return { dia: DIAS_SEM[dw], dw: dw, digitos: PP_MAPA[dw] || null };
+    }
+    /* Último dígito de la placa: FAC5418→8, PCN3220→0 */
+    function ultimoDigito(placa) {
+      var m = /(\d)\D*$/.exec(String(placa || ''));
+      return m ? +m[1] : null;
+    }
+    function vehiculoPermitido(v, pp) {
+      if (!pp || !pp.digitos) return true; /* sábado/domingo/sin dato: libre */
+      var d = ultimoDigito(v.placa);
+      return d != null && pp.digitos.indexOf(d) === -1;
+    }
+    /* Flota que trabaja el día planificado:
+       sábado con FLOTA_SABADO definido → media flota; resto → toda la flota */
+    function flotaDelDia(pp) {
+      if (pp && pp.dw === 6 && FLOTA_SABADO.length)
+        return FLOTA.filter(function(v){ return FLOTA_SABADO.indexOf(v.cod) !== -1; });
+      return FLOTA;
+    }
+
     /* ================= [1] HISTORIAL: codigosUsados/{fecha}/{codRuta}/datosFormulario/{idx} ==
-       (codigosUsados está en la RAIZ, fuera de rutas)
        El orden de entrega = momento de captura GPS (regla del negocio).        */
     function construirHistorial(cuObj, fechas) {
       var hist = [];
@@ -236,10 +309,7 @@
       return hist;
     }
 
-    /* ================= [2] ESTADISTICAS DEL HISTORIAL =================
-       Por cliente: visitas, orden promedio, hora de llegada, permanencia real,
-       ventana horaria moda (inicio-fin), promedio GPS propio.
-       Por pares consecutivos: frecuencia A>B para el bonus de secuencia.   */
+    /* ================= [2] ESTADISTICAS DEL HISTORIAL ================= */
     function statsHistorial(hist) {
       var cli = {}, pares = {};
       hist.forEach(function(dia) {
@@ -269,6 +339,33 @@
         if (o.nGeo) { o.lat/=o.nGeo; o.lon/=o.nGeo; }
       });
       return { cli: cli, pares: pares };
+    }
+
+    /* ================= [★] CAMION HABITUAL POR HISTORIAL =================
+       El código de transporte de codigosUsados (ej '119') es el COD TRANSPORTE
+       de la flota. Vota qué camión ha servido a los clientes de cada ruta. */
+    function habitualesDeHistorial(hist) {
+      var camiones = {};
+      hist.forEach(function(dia) {
+        dia.transportes.forEach(function(tr) {
+          tr.puntos.forEach(function(p) {
+            if (!p.codc) return;
+            (camiones[p.codc] = camiones[p.codc] || {});
+            camiones[p.codc][tr.codigo] = (camiones[p.codc][tr.codigo] || 0) + 1;
+          });
+        });
+      });
+      return camiones;
+    }
+    function camionHabitualRuta(clientesDeRuta, camiones) {
+      var votos = {};
+      (clientesDeRuta || []).forEach(function(c) {
+        var m = camiones[c.codc]; if (!m) return;
+        Object.keys(m).forEach(function(codT) { votos[codT] = (votos[codT] || 0) + m[codT]; });
+      });
+      var best = null, bv = 0;
+      Object.keys(votos).forEach(function(k) { if (votos[k] > bv) { bv = votos[k]; best = k; } });
+      return best;
     }
 
     /* ================= [3] VALIDACION GEO =================
@@ -335,9 +432,7 @@
       return bins;
     }
 
-    /* ================= [5] SECUENCIACION: NN + 2-opt =================
-       Score = km reales + penalización por ventanas incumplidas
-       − bonus por pares históricos frecuentes (menor = mejor).             */
+    /* ================= [5] SECUENCIACION: NN + 2-opt ================= */
     function scoreSeq(seq, pares, salidaMin, dep) {
       var km=0, pen=0, eta=salidaMin, prev=dep;
       for (var i = 0; i < seq.length; i++) {
@@ -404,6 +499,10 @@
       var clientes = prep.clientes, alertas = prep.alertas.slice();
       var dep = opts.deposito || null;
       var salidaMin = hhmm2min(opts.salida) || salidaEstimada(hist);
+      /* ★ pico y placa del día planificado + flota del día + habituales */
+      var pp = picoYPlaca(opts.fecha);
+      var flotaDia = flotaDelDia(pp);
+      var habituales = habitualesDeHistorial(hist);
 
       var porRuta = {};
       clientes.forEach(function(c){ (porRuta[c.ruta || 'SIN RUTA'] = porRuta[c.ruta || 'SIN RUTA'] || []).push(c); });
@@ -435,11 +534,10 @@
             });
             eta += c._aten;
           });
-          if (fuera > 0) alertas.push(ruta + ' T' + (bi+1) + ': ' + fuera + ' parada(s) fuera de ventana estimada');
-          /* punto dedicado que excede la capacidad */
+          if (fuera > 0) alertas.push(ruta + ': ' + fuera + ' parada(s) fuera de ventana estimada');
           if (b.dedicado) {
             var c0 = b.items[0];
-            alertas.push(ruta + ' T' + (bi+1) + ': ' + c0.clnt + ' (' + fmtKg(c0.peso) + ' kg) excede ' + fmtKg(CAP_KG) + ' kg \u2192 vehículo dedicado, ' + b.viajes + ' viajes al mismo punto');
+            alertas.push(ruta + ': ' + c0.clnt + ' (' + fmtKg(c0.peso) + ' kg) excede ' + fmtKg(CAP_KG) + ' kg \u2192 vehículo dedicado, ' + b.viajes + ' viajes al mismo punto');
           }
           planes.push({ ruta: ruta, transporte: 'T' + (bi+1), dedicado: !!b.dedicado, viajes: b.viajes || 1,
             pesoTotal: pesoT, capKg: CAP_KG,
@@ -448,11 +546,35 @@
             finEstimado: fmtMin(eta), paradas: det.length, secuencia: det });
         });
       });
-      return { ts: Date.now(), version: 'v3.1-3t', capKg: CAP_KG, salidaEstimada: fmtMin(salidaMin),
-        diasHistorial: hist.length, deposito: dep, alertas: alertas, planes: planes };
+
+      /* ================= ★ ASIGNACION DE VEHICULOS REALES =================
+         Orden: rutas más pesadas primero. Para cada una, de la flota DEL DÍA
+         (sábado = media flota) y permitida por P&P y no usada:
+         1º camión habitual del historial
+         2º el de mayor capacidad disponible (c1 de referencia)
+         Sin candidatos → queda genérico T# + alerta */
+      var usadosV = {};
+      planes.slice().sort(function(a,b){ return b.pesoTotal - a.pesoTotal; }).forEach(function(pl) {
+        var disp = flotaDia.filter(function(v){ return vehiculoPermitido(v, pp) && !usadosV[v.cod]; });
+        var hab = camionHabitualRuta(porRuta[pl.ruta], habituales);
+        var elegido = hab ? disp.filter(function(v){ return v.cod === hab; })[0] : null;
+        if (!elegido) { disp.sort(function(a,b){ return (b.c1||0) - (a.c1||0); }); elegido = disp[0] || null; }
+        if (elegido) {
+          usadosV[elegido.cod] = true;
+          pl.transporte = elegido.cod;
+          pl.conductor = elegido.nom;
+          pl.placa = elegido.placa;
+        } else {
+          alertas.push('Pico y placa ' + pp.dia + (pp.digitos ? ' (' + pp.digitos.join(',') + ')' : '') + ': sin veh\u00edculos disponibles para ' + pl.ruta);
+        }
+      });
+
+      return { ts: Date.now(), version: 'v3.3-3t-pp', capKg: CAP_KG, salidaEstimada: fmtMin(salidaMin),
+        diasHistorial: hist.length, deposito: dep,
+        picoPlaca: pp, alertas: alertas, planes: planes };
     }
 
-    /* ================= FIREBASE: LECTURAS ================= */
+    /* ================= FIREBASE: LECTURAS / ESCRITURA ================= */
     function normalizarDeposito(v) {
       if (!v) return null;
       var lat = (v.lat != null) ? v.lat : v['lat:']; /* ★ maneja el typo "lat:" del nodo deposito */
@@ -529,8 +651,7 @@
 
     /* ================= DEMO (sin Firebase) =================
        Clientes reales del 2026-10-05. SIGMAEC (0,0) cae al centroide del
-       sector AMAGUAÑA (ALMACEN AMAGUAÑA) y sus 8 t generan vehículo
-       dedicado con 3 viajes — así se validan ambas reglas.                 */
+       sector AMAGUAÑA y sus 8 t generan vehículo dedicado con 3 viajes. */
     var DEPOSITO_DEMO = { lat: -0.1704004875176796, lon: -78.3341932296753 };
     var CLIENTES_DEMO = [
       ["ALMACEN YARUQUI","ALM02",-0.162573,-78.320083,582,"GUAYLLABAMBA","YARUQUI MERCADO"],
@@ -586,11 +707,18 @@
     }
 
     function ejecutarPlan(fecha, clientes, hist, dep) {
-      var plan = planificarDia(clientes, hist, { deposito: dep });
+      var plan = planificarDia(clientes, hist, { deposito: dep, fecha: fecha });
       plan.fecha = fecha;
       planActual = plan;
       renderPlan(plan); renderSidebar(plan);
       document.title = 'Plan ' + fecha + ' \u00b7 Planificador';
+      /* ★ chip de pico y placa del día planificado */
+      var pp = plan.picoPlaca;
+      var ppTxt = pp.digitos ? ('P&P ' + pp.digitos.join(',')) : 'sin P&P';
+      var sabTxt = (pp.dw === 6 && FLOTA_SABADO.length) ? ' \u00b7 media flota (' + FLOTA_SABADO.length + ')' : '';
+      var chip = document.getElementById('chipPP');
+      chip.textContent = pp.dia + ' \u00b7 ' + ppTxt + sabTxt;
+      chip.className = 'chip ' + (pp.digitos ? 'c-h' : 'c-pt');
       var totV = plan.planes.length, totC = plan.planes.reduce(function(s,p){ return s+p.paradas; },0);
       var totKg = plan.planes.reduce(function(s,p){ return s+p.pesoTotal; },0);
       var totKm = plan.planes.reduce(function(s,p){ return s+p.kmTotal; },0);
@@ -601,11 +729,12 @@
 
     function popupCliente(pl, d, prev, col) {
       var ph = '<div class="pp">';
-      ph += '<div class="pp-num">Parada ' + d.orden + ' \u00b7 ' + esc(pl.transporte + ' ' + pl.ruta) + '</div>';
+      ph += '<div class="pp-num">Parada ' + d.orden + ' \u00b7 ' + esc(pl.ruta) + '</div>';
       ph += '<div class="pp-nombre" style="color:' + col + '">' + esc(d.clnt) + '</div>';
+      /* ★ vehículo real asignado */
+      ph += '<div class="pp-row"><i class="fa-solid fa-truck"></i>Veh\u00edculo ' + esc(pl.transporte) + (pl.placa ? ' \u00b7 ' + esc(pl.placa) : '') + (pl.conductor ? ' \u00b7 ' + esc(pl.conductor) : '') + '</div>';
       ph += '<div class="pp-row"><i class="fa-solid fa-tag"></i>' + esc(d.sector || '\u2014') + '</div>';
       ph += '<div class="pp-row"><i class="fa-solid fa-weight-hanging"></i>' + fmtKg(d.peso) + ' kg</div>';
-      /* punto dedicado: N viajes al mismo punto */
       if (d.viajes) ph += '<div class="pp-row"><i class="fa-solid fa-repeat" style="color:#ffd166"></i><span style="color:#ffd166;font-weight:700">Requiere ' + d.viajes + ' viajes de ' + fmtKg(CAP_KG) + ' kg</span></div>';
       ph += '<div class="pp-row"><i class="fa-regular fa-clock"></i>ETA ' + d.etaTxt + (prev ? ' \u00b7 ' + (Math.round(havKm(prev, d)*10)/10) + ' km desde anterior' : ' desde dep\u00f3sito') + '</div>';
       if (d.ventanaTxt) ph += '<div class="pp-row"><i class="fa-solid fa-hourglass-half"></i><span style="color:' + (d.fueraVentana ? '#f87171' : '#34d399') + ';font-weight:700">' + (d.fueraVentana ? 'Fuera de ventana ' : 'Ventana ') + d.ventanaTxt + '</span>' + (d.ventanaFuente ? ' <span style="color:#565e74">(' + esc(d.ventanaFuente) + ')</span>' : '') + '</div>';
@@ -653,6 +782,7 @@
       var totC = plan.planes.reduce(function(s,p){ return s+p.paradas; },0);
       var totKg = plan.planes.reduce(function(s,p){ return s+p.pesoTotal; },0);
       var totKm = plan.planes.reduce(function(s,p){ return s+p.kmTotal; },0);
+      var pp = plan.picoPlaca;
       document.getElementById('sbChips').innerHTML =
         '<span class="chip c-tr">' + plan.planes.length + ' veh\u00edculos</span>' +
         '<span class="chip c-pt">' + totC + ' paradas</span>' +
@@ -665,11 +795,32 @@
         al.style.display = 'block';
         al.innerHTML = plan.alertas.map(function(a){ return '<div><i class="fa-solid fa-triangle-exclamation"></i> ' + esc(a) + '</div>'; }).join('');
       } else { al.style.display = 'none'; al.innerHTML = ''; }
+
+      /* ★ flota del día (sábado = media flota si está definida) */
+      var fDia = flotaDelDia(pp);
+      var usados = {};
+      plan.planes.forEach(function(pl){ if (pl.transporte) usados[pl.transporte] = true; });
+
       var html = '';
       plan.planes.forEach(function(pl, pi) {
+        var vAct = FLOTA.filter(function(x){ return x.cod === pl.transporte; })[0];
+        var ppBad = vAct && !vehiculoPermitido(vAct, pp);
         html += '<div class="sb-plan" data-pi="' + pi + '">';
         html += '<div class="sb-bar" style="background:' + pl._color + '"></div>';
-        html += '<div class="sb-content"><div class="sb-top"><span class="sb-codigo" style="color:' + pl._color + '">' + pl.transporte + ' \u00b7 ' + esc(pl.ruta) + (pl.dedicado ? ' \u00b7 dedicado' : '') + '</span><span class="sb-badge ' + (pl.dedicado ? 'bd' : 'bp') + '">' + pl.utilizacion + '%' + (pl.viajes > 1 ? ' \u00b7 ' + pl.viajes + ' viajes' : '') + '</span></div>';
+        html += '<div class="sb-content"><div class="sb-top"><span class="sb-codigo" style="color:' + pl._color + '">' + esc(pl.transporte) + ' \u00b7 ' + esc(pl.ruta) + (pl.dedicado ? ' \u00b7 dedicado' : '') + '</span><span class="sb-badge ' + (pl.dedicado ? 'bd' : 'bp') + '">' + pl.utilizacion + '%' + (pl.viajes > 1 ? ' \u00b7 ' + pl.viajes + ' viajes' : '') + '</span></div>';
+        html += '<div class="sb-meta"><i class="fa-solid fa-truck"></i>' + esc(pl.conductor || 'sin asignar') + (pl.placa ? ' \u00b7 ' + esc(pl.placa) : '') + (ppBad ? ' <span style="color:#f87171;font-weight:700">\ud83d\udeabP&P</span>' : '') + '</div>';
+        /* ★ selector manual de vehículo (solo flota del día; incluye el asignado aunque esté fuera) */
+        html += '<div class="sb-veh"><select class="veh-sel" data-pi="' + pi + '">';
+        var lista = fDia.slice();
+        if (vAct && !lista.some(function(x){ return x.cod === vAct.cod; })) lista.unshift(vAct);
+        lista.forEach(function(v) {
+          var ok = vehiculoPermitido(v, pp);
+          var enDia = fDia.some(function(x){ return x.cod === v.cod; });
+          var ya = usados[v.cod] && v.cod !== pl.transporte;
+          var tag = (!ok ? '\ud83d\udeab' : '') + (!enDia ? '\u2694' : '') + (ya ? '\u26a0 ' : '');
+          html += '<option value="' + esc(v.cod) + '"' + (v.cod === pl.transporte ? ' selected' : '') + '>' + tag + v.cod + ' ' + esc(v.nom) + ' (' + esc(v.placa) + ')</option>';
+        });
+        html += '</select></div>';
         html += '<div class="sb-meta"><i class="fa-solid fa-weight-hanging"></i>' + fmtKg(pl.pesoTotal) + ' kg<i class="fa-solid fa-location-dot"></i>' + pl.paradas + '<i class="fa-solid fa-road"></i>' + pl.kmTotal + ' km<i class="fa-regular fa-clock"></i>fin ~' + pl.finEstimado + '</div>';
         html += '<div class="sb-paradas">';
         pl.secuencia.forEach(function(d) {
@@ -692,7 +843,12 @@
         var par = e.target.closest('.sb-parada');
         if (par) { e.stopPropagation(); focoParada(par.getAttribute('data-key')); return; }
         var pl = e.target.closest('.sb-plan');
-        if (pl) { pl.classList.toggle('open'); zoomPlan(pl.getAttribute('data-pi')); }
+        if (pl && !e.target.closest('.veh-sel')) { pl.classList.toggle('open'); zoomPlan(pl.getAttribute('data-pi')); }
+      });
+      /* ★ cambio manual de vehículo con intercambio automático */
+      el.addEventListener('change', function(e) {
+        var sel = e.target.closest('.veh-sel');
+        if (sel) { e.stopPropagation(); cambiarVehiculo(+sel.getAttribute('data-pi'), sel.value); }
       });
       el.addEventListener('mouseover', function(e) {
         var pl = e.target.closest('.sb-plan');
@@ -702,6 +858,31 @@
         var pl = e.target.closest('.sb-plan');
         if (pl && !pl.contains(e.relatedTarget)) uhlPlan(pl.getAttribute('data-pi'));
       });
+    }
+    /* ★ Reasignación manual con swap: si el vehículo ya tenía otra ruta,
+       los dos planes intercambian el vehículo. Avisa si viola P&P o
+       no pertenece a la flota del día. */
+    function cambiarVehiculo(pi, codNuevo) {
+      if (!planActual) return;
+      var v = FLOTA.filter(function(x){ return x.cod === codNuevo; })[0];
+      if (!v) return;
+      var pp = planActual.picoPlaca;
+      var actual = planActual.planes[pi];
+      var prevT = actual.transporte;
+      var prevReal = FLOTA.some(function(x){ return x.cod === prevT; });
+      var otro = null, otroIdx = -1;
+      planActual.planes.forEach(function(p, i) { if (i !== pi && p.transporte === codNuevo) { otro = p; otroIdx = i; } });
+      if (otro) {
+        if (prevReal) { otro.transporte = prevT; otro.conductor = actual.conductor; otro.placa = actual.placa; }
+        else { otro.transporte = 'T' + (otroIdx + 1); otro.conductor = null; otro.placa = null; }
+      }
+      actual.transporte = v.cod; actual.conductor = v.nom; actual.placa = v.placa;
+      var avisos = [];
+      if (!vehiculoPermitido(v, pp)) avisos.push('ATENCI\u00d3N: restringido por P&P ' + (pp.digitos || []).join(','));
+      var enDia = flotaDelDia(pp).some(function(x){ return x.cod === v.cod; });
+      if (!enDia) avisos.push('no pertenece a la flota del d\u00eda');
+      estado('Veh\u00edculo ' + v.cod + ' \u2192 ' + actual.ruta + (avisos.length ? ' (' + avisos.join(' \u00b7 ') + ')' : '') + (otro ? ' \u00b7 intercambi\u00f3 con ' + otro.ruta : ''), false, avisos.length > 0);
+      renderSidebar(planActual);
     }
     function focoParada(key) {
       var m = mkIndex[key];
@@ -754,8 +935,7 @@
     document.addEventListener('DOMContentLoaded', function() {
       initMapa();
       document.getElementById('inpFecha').value = mananaISO();
-      /* ★ fecha sugerida desde el mapamonitor (botón "Planificar entregas"):
-         abre ya posicionado en la fecha del plan activo para re-planificar */
+      /* ★ fecha sugerida desde el mapamonitor (botón "Planificar entregas") */
       try {
         var fSug = localStorage.getItem('plan_fecha_sugerida');
         if (fSug && /^\d{4}-\d{2}-\d{2}$/.test(fSug)) {
@@ -766,6 +946,9 @@
       if (FB_OK) generar();
       else modoDemo(mananaISO());
     });
+  </script>
+</body>
+</html>
   </script>
 </body>
 </html>
