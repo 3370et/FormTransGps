@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Redistribuir rutas</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.css">
+<style>
+  body { margin: 0; font: 13px sans-serif; }
+  #map { height: 100vh; }
+  #panel { position: absolute; top: 10px; right: 10px; z-index: 1000; background: #fff;
+           padding: 12px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.35);
+           width: 380px; max-height: 90vh; overflow: auto; }
+  #panel h3 { margin: 0 0 8px; }
+  .fila { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+  .fila.wrap { flex-wrap: wrap; }
+  .fila label { display: flex; align-items: center; gap: 3px; }
+  .chip { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .nombre { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+  .kg { font-weight: 700; white-space: nowrap; }
+  .camion { max-width: 230px; }
+  .mini { color: #555; font-size: 11px; white-space: nowrap; }
+  .excede { color: #d32f2f; font-weight: 600; }
+  .ok { color: #2e7d32; }
+  .barra { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin: 2px 0 6px 18px; }
+  .barra > div { height: 100%; }
+  .total { border-top: 1px solid #ddd; margin-top: 8px; padding-top: 6px; }
+  .verbtns { margin-bottom: 4px; }
+  .verbtns button { font-size: 11px; padding: 1px 6px; }
+  .divBtn { font-size: 12px; padding: 2px 7px; flex: none; }
+  .editor { background: #f5f7fa; border: 1px solid #dde3ea; border-radius: 6px;
+            padding: 6px 8px; margin: 2px 0 6px 18px; display: flex;
+            flex-wrap: wrap; gap: 6px; align-items: center; }
+  .editor input { width: 150px; }
+  .editor .pct { width: 55px; }
+  #controles { position: absolute; top: 10px; left: 60px; z-index: 1000; background: #fff;
+               padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.35);
+               max-width: 480px; max-height: 90vh; overflow: auto; }
+  select, button, input { font: 13px sans-serif; padding: 4px 8px; }
+  button { cursor: pointer; }
+  #estado { margin-top: 6px; min-height: 16px; color: #333; }
+  .etq { background: transparent; border: none; box-shadow: none; font: 700 10px sans-serif;
+         color: #222; text-shadow: 0 0 3px #fff, 0 0 3px #fff; padding: 0; }
+  .etq::before { display: none; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="controles">
+  <div class="fila">
+    <label>Fecha:</label> <input type="date" id="fecha">
+    <span class="mini">(cambiala para revisar otro día)</span>
+  </div>
+  <div class="fila">
+    <button id="btnBuscarDepot">🏠 Buscar depósito</button>
+    <button id="btnDepot">📍 Clic en mapa</button>
+    <span class="mini" id="infoDepot">Depósito: sin definir</span>
+  </div>
+  <div class="fila">
+    Mover zona a: <select id="destino"></select>
+  </div>
+  <div class="fila">
+    <label><input type="checkbox" id="modoClic"> Mover con clic</label>
+    <label><input type="checkbox" id="etiquetas"> Etiquetas</label>
+  </div>
+  <div class="fila">
+    <button id="btnOrden">🧭 Orden de visita</button>
+  </div>
+  <div class="fila">
+    <span class="mini" id="infoPicoPlaca"></span>
+  </div>
+  <div class="fila">
+    <button id="btnUndo">↩ Deshacer</button>
+    <button id="btnReset">⟲ Original</button>
+    <button id="btnCSV">⬇ CSV</button>
+    <button id="btnGuardar">💾 Guardar</button>
+  </div>
+  <div id="estado">Cargando…</div>
+</div>
+
+<div id="panel"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.js"></script>
+<script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
+<script>
+"use strict";
+
+// ============================================================
+//  CONFIGURAR
+// ============================================================
+const FIREBASE_URL = "https://TU-PROYECTO-default-rtdb.firebaseio.com"; // sin barra final
+const AUTH = "TU_CLAVE_SECRETA"; // dejar "" si configuraste lectura pública para /rutas
+
+// ============================================================
+//  HELPERS
+// ============================================================
+const estadoEl = document.getElementById("estado");
+function estado(msg){ estadoEl.textContent = msg; }
+
+function aNum(v){
+  if(v === null || v === undefined || v === "") return NaN;
+  return Number(String(v).replace(",", "."));
+}
+
+function fechaHoy(){
+  const h = new Date();
+  return h.getFullYear() + "-" + String(h.getMonth()+1).padStart(2,"0") + "-" + String(h.getDate()).padStart(2,"0");
+}
+
+function claveFirebase(ruta){ // Firebase no admite . $ # [ ] / en claves
+  return String(ruta).replace(/[.#$\[\]\/]/g, "_");
+}
+
+function authQS(){ return AUTH ? "?auth=" + AUTH : ""; }
+
+function esc(s){ // para atributos HTML
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+}
+
+// Horario numérico de Excel (0.2083) -> "05:00". Texto normal pasa igual.
+function normalizarHorario(v){
+  const s = String(v === null || v === undefined ? "" : v).trim();
+  if(s === "") return "";
+  const n = Number(s);
+  if(!isNaN(n) && n > 0 && n < 1){
+    const mins = Math.round(n * 24 * 60);
+    return String(Math.floor(mins/60)).padStart(2,"0") + ":" + String(mins%60).padStart(2,"0");
+  }
+  return s;
+}
+
+// ============================================================
+//  PICO Y PLACA (se evalúa con FECHA + 1: lo de hoy sale mañana)
+// ============================================================
+const PICO_PLACA = {1: ["1","2"], 2: ["3","4"], 3: ["5","6"], 4: ["7","8"], 5: ["9","0"]};
+const DIAS_SEM = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+
+function fechaSalida(){
+  const d = new Date(FECHA + "T12:00:00"); // mediodía evita corrimiento de zona horaria
+  d.setDate(d.getDate() + 1);
+  return d;
+}
+function digitosRestringidos(){
+  return PICO_PLACA[fechaSalida().getDay()] || null; // sábado/domingo: null
+}
+function ultimoDigitoPlaca(placa){
+  const digs = String(placa || "").replace(/\D/g, "");
+  return digs ? digs.slice(-1) : null;
+}
+function camionRestringido(cod){
+  if(!cod || !flota[cod]) return false;
+  const dig = digitosRestringidos();
+  if(!dig) return false;
+  const d = ultimoDigitoPlaca(flota[cod].placa);
+  return d !== null && dig.indexOf(d) >= 0;
+}
+function actualizarInfoPicoPlaca(){
+  const d = fechaSalida(), dig = digitosRestringidos();
+  const txt = "Pico y placa " + DIAS_SEM[d.getDay()] + " " + d.getDate() + "/" + (d.getMonth()+1) + ": " +
+              (dig ? "placas terminadas en " + dig[0] + " y " + dig[1] : "sin restricción");
+  document.getElementById("infoPicoPlaca").textContent = txt;
+}
+
+// ============================================================
+//  ESTADO GLOBAL
+// ============================================================
+let FECHA = fechaHoy();
+let clientes = [];        // con coordenadas válidas (se muestran y se pueden mover)
+let sinCoord = [];        // sin coordenadas o 0,0 (se conservan tal cual al guardar)
+let marcadores = {};
+let historial = [];       // pila de deshacer (lotes de cambios de ruta o splits)
+let original = [];        // rutas tal como vinieron de Firebase
+let flota = {};           // código camión -> {codigo, transporte, placa, kg, kavetas, ganchos}
+let asignaciones = {};    // ruta -> código de camión (Firebase /asignaciones/<fecha>)
+let filtros = {};         // ruta -> visible true/false (undefined = visible)
+let hayCambios = false;
+let maxPeso = 1;
+let ordenKm = {};
+let capasOrden = [];
+let modoDividir = null;   // {origen, nueva} cuando se divide por zonas
+let division = null;      // {ruta} cuando el editor de división está abierto en el panel
+
+const colores = ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#a65628","#f781bf","#999933","#66c2a5","#fc8d62"];
+let nColor = 0;
+const colorAsignado = {};
+function colorDe(ruta){
+  if(ruta === null || ruta === "Sin ruta") return "#8a8a8a";
+  if(!(ruta in colorAsignado)) colorAsignado[ruta] = colores[nColor++ % colores.length];
+  return colorAsignado[ruta];
+}
+function visible(c){ return filtros[c.ruta || "Sin ruta"] !== false; }
+
+// ============================================================
+//  MAPA
+// ============================================================
+const map = L.map("map");
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+
+// ============================================================
+//  DEPÓSITO (nodo /deposito en Firebase, global)
+// ============================================================
+let DEPOT = { lat: null, lon: null, nombre: "Depósito" };
+let marcadorDepot = null;
+let modoDepot = false;
+
+const iconoDepot = L.divIcon({
+  className: "",
+  html: '<div style="background:#111;color:#fff;font:700 11px sans-serif;padding:3px 7px;border-radius:10px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)">D</div>',
+  iconSize: [26, 22], iconAnchor: [13, 11]
+});
+
+function infoDepotTxt(){
+  return "Depósito: " + (DEPOT.lat === null ? "sin definir" :
+         DEPOT.nombre + " (" + DEPOT.lat.toFixed(5) + ", " + DEPOT.lon.toFixed(5) + ")");
+}
+function actualizarInfoDepot(){ document.getElementById("infoDepot").textContent = infoDepotTxt(); }
+
+function pintarDepot(){
+  if(marcadorDepot) map.removeLayer(marcadorDepot);
+  marcadorDepot = L.marker([DEPOT.lat, DEPOT.lon], {icon: iconoDepot, draggable: true, title: DEPOT.nombre})
+    .addTo(map)
+    .bindPopup("<b>" + DEPOT.nombre + "</b><br>" + DEPOT.lat.toFixed(5) + ", " + DEPOT.lon.toFixed(5) +
+               "<br><i>Arrastralo para ajustar</i>")
+    .on("dragend", () => {
+      const p = marcadorDepot.getLatLng();
+      DEPOT.lat = p.lat; DEPOT.lon = p.lng;
+      guardarDeposito();
+      invalidarOrden(true);
+      actualizarInfoDepot();
+      estado("Depósito movido → recalculá el orden con 🧭");
+    });
+}
+
+function guardarDeposito(){
+  const http = new XMLHttpRequest();
+  http.open("PUT", FIREBASE_URL + "/deposito.json" + authQS(), true);
+  http.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
+  http.send(JSON.stringify(DEPOT));
+}
+
+function cargarDeposito(){
+  return fetch(FIREBASE_URL + "/deposito.json" + authQS())
+    .then(r => r.json())
+    .then(obj => {
+      if(obj && isFinite(aNum(obj.lat)) && isFinite(aNum(obj.lon))){
+        DEPOT.lat = aNum(obj.lat); DEPOT.lon = aNum(obj.lon);
+        if(obj.nombre) DEPOT.nombre = obj.nombre;
+        pintarDepot();
+      }
+      actualizarInfoDepot();
+    })
+    .catch(() => actualizarInfoDepot());
+}
+
+document.getElementById("btnBuscarDepot").onclick = () => {
+  const dir = prompt("Dirección del depósito:\n(calle, número, ciudad, país)");
+  if(!dir) return;
+  estado("Buscando dirección…");
+  fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(dir))
+    .then(r => r.json())
+    .then(res => {
+      if(!res.length){ estado("No encontré esa dirección. Probá escribirla más completa (con ciudad y país)."); return; }
+      DEPOT.lat = Number(res[0].lat);
+      DEPOT.lon = Number(res[0].lon);
+      DEPOT.nombre = res[0].display_name.split(",").slice(0, 3).join(",");
+      pintarDepot(); guardarDeposito(); actualizarInfoDepot();
+      map.setView([DEPOT.lat, DEPOT.lon], 15);
+      invalidarOrden(true);
+      estado("Depósito encontrado: " + res[0].display_name + " → verificá el punto y ajustalo si hace falta");
+    })
+    .catch(() => estado("Error buscando la dirección (¿sin internet?)"));
+};
+
+document.getElementById("btnDepot").onclick = () => {
+  modoDepot = true;
+  map.getContainer().style.cursor = "crosshair";
+  estado("Hacé clic en el mapa donde está el depósito… (ESC para cancelar)");
+};
+map.on("click", e => {
+  if(!modoDepot) return;
+  if(map.pm.getGlobalDrawModeEnabled && map.pm.getGlobalDrawModeEnabled()) return;
+  modoDepot = false;
+  map.getContainer().style.cursor = "";
+  DEPOT.lat = e.latlng.lat; DEPOT.lon = e.latlng.lng;
+  pintarDepot(); guardarDeposito(); actualizarInfoDepot();
+  invalidarOrden(true);
+  estado("Depósito definido en " + DEPOT.lat.toFixed(5) + ", " + DEPOT.lon.toFixed(5));
+});
+
+// ============================================================
+//  POPUPS Y ETIQUETAS
+// ============================================================
+function popupHTML(c){
+  const compo = [];
+  if(Number(c.kavetas))  compo.push(Math.round(Number(c.kavetas)) + " kav");
+  if(Number(c.cartones)) compo.push(Math.round(Number(c.cartones)) + " cart");
+  if(Number(c.ganchos))  compo.push(Math.round(Number(c.ganchos)) + " gan");
+  return "<b>" + (c.orden ? "#" + c.orden + " " : "") + c.clnt + "</b> (" + (c.codc || "") + ")" +
+         "<br>Ruta: <b>" + (c.ruta || "Sin ruta") + "</b>" +
+         "<br>Sector: " + (c.sector || "-") + " | Horario: " + (c.horarios || "-") +
+         "<br>Prioridad: " + (c.prioridad || "-") +
+         "<br><b>Peso: " + Math.round(c.peso) + " kg</b>" +
+         (compo.length ? "<br>" + compo.join(" · ") : "");
+}
+function tooltipTXT(c){ return (c.orden ? "#" + c.orden + " " : "") + c.clnt; }
+function refrescarTooltip(i){
+  const c = clientes[i], m = marcadores[i];
+  m.unbindTooltip();
+  if(document.getElementById("etiquetas").checked){
+    m.bindTooltip(tooltipTXT(c), {permanent: true, direction: "right", className: "etq"});
+  }
+}
+function refrescarTodosTooltips(){ clientes.forEach((c, i) => refrescarTooltip(i)); }
+
+// ============================================================
+//  FLOTA (nodo /rutas/flota — la carga la macro de Excel)
+// ============================================================
+function cargarFlota(){
+  return fetch(FIREBASE_URL + "/rutas/flota.json" + authQS())
+    .then(r => r.json())
+    .then(obj => { flota = obj || {}; })
+    .catch(() => { flota = {}; });
+}
+
+// Capacidad efectiva de una ruta: la del camión asignado
+function capacidadDe(ruta){
+  const cod = asignaciones[ruta];
+  if(cod && flota[cod])
+    return {kg: Number(flota[cod].kg) || 0,
+            kavetas: Number(flota[cod].kavetas) || 0,
+            ganchos: Number(flota[cod].ganchos) || 0};
+  return {kg: 0, kavetas: 0, ganchos: 0};
+}
+
+// ============================================================
+//  CARGAR CLIENTES + ASIGNACIONES DE LA FECHA
+// ============================================================
+function cargarDatos(){
+  Object.values(marcadores).forEach(m => map.removeLayer(m));
+  invalidarOrden(true);
+  marcadores = {}; clientes = []; sinCoord = []; historial = []; original = [];
+  filtros = {}; hayCambios = false; maxPeso = 1; ordenKm = {}; asignaciones = {};
+  modoDividir = null; division = null;
+
+  estado("Cargando " + FECHA + "…");
+  Promise.all([
+    fetch(FIREBASE_URL + "/rutas/" + FECHA + ".json" + authQS())
+      .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); }),
+    fetch(FIREBASE_URL + "/asignaciones/" + FECHA + ".json" + authQS())
+      .then(r => r.json()).catch(() => null)
+  ])
+  .then(([data, asig]) => {
+    if(asig) Object.keys(asig).forEach(k => {
+      if(asig[k] && asig[k].camion) asignaciones[asig[k].ruta || k] = asig[k].camion;
+    });
+
+    if(!data) throw new Error("No hay datos para " + FECHA + ". Ejecutá primero la macro de Excel.");
+    const lista = Array.isArray(data) ? data : Object.values(data);
+    lista.forEach(raw => {
+      if(!raw || typeof raw !== "object") return;
+      const lat = aNum(raw.lat), lon = aNum(raw.lon);
+      if(isFinite(lat) && isFinite(lon) && (lat !== 0 || lon !== 0)){
+        const c = Object.assign({}, raw);
+        c.lat = lat; c.lon = lon;
+        c.peso = Number(c.peso) || 0;
+        c.horarios = normalizarHorario(raw.horarios);
+        if(!c.ruta) c.ruta = null;
+        clientes.push(c);
+      } else {
+        sinCoord.push(raw);
+      }
+    });
+    if(!clientes.length) throw new Error("Ningún cliente tiene coordenadas válidas.");
+
+    maxPeso = Math.max(...clientes.map(c => c.peso), 1);
+    original = clientes.map(c => c.ruta);
+
+    clientes.forEach((c, i) => {
+      const col = colorDe(c.ruta);
+      marcadores[i] = L.circleMarker([c.lat, c.lon], {
+          radius: 5 + 7 * (c.peso / maxPeso),
+          color: col, fillColor: col, fillOpacity: .85
+        })
+        .bindPopup(popupHTML(c))
+        .on("click", () => moverConClic(i))
+        .addTo(map);
+    });
+    refrescarTodosTooltips();
+    map.fitBounds(L.latLngBounds(clientes.map(c => [c.lat, c.lon])), {padding: [40, 40], maxZoom: 15});
+
+    poblarDestino();
+    renderPanel();
+    estado("Listo. Elegí ruta destino y dibujá una zona (o activá 'Mover con clic').");
+  })
+  .catch(e => estado("Error: " + e.message));
+}
+
+// ============================================================
+//  SELECTOR DE RUTA DESTINO
+// ============================================================
+function poblarDestino(){
+  const sel = document.getElementById("destino");
+  sel.innerHTML = "";
+  const rutas = [...new Set(clientes.map(c => c.ruta).filter(r => r !== null))].sort();
+  rutas.forEach(r => sel.add(new Option(r, r)));
+  sel.add(new Option("— Sin ruta (quitar) —", ""));
+  sel.add(new Option("➕ Nueva ruta…", "__nueva__"));
+  sel.value = rutas[0] || "";
+
+  let previo = sel.value;
+  sel.onfocus = () => previo = sel.value;
+  sel.onchange = () => {
+    if(sel.value === "__nueva__"){
+      const nombre = prompt("Nombre de la nueva ruta:");
+      if(nombre && nombre.trim()){
+        const n = nombre.trim();
+        if(![...sel.options].some(o => o.value === n)) sel.add(new Option(n, n), sel.options.length - 2);
+        sel.value = n;
+        colorDe(n);
+      } else {
+        sel.value = previo;
+      }
+    }
+  };
+}
+
+// ============================================================
+//  PANEL: TOTALES + FILTROS + CAMIONES + ✂ DIVISIÓN POR RUTA
+// ============================================================
+function barra(v, cap, etq){
+  if(!(cap > 0)) return "";
+  const pct = Math.min(100, v / cap * 100);
+  const excede = v > cap;
+  return '<div class="barra"><div style="width:' + pct + '%;background:' + (excede ? "#d32f2f" : "#4caf50") + '"></div></div>' +
+         (excede ? '<span class="excede">⚠ ' + etq + ': excede ' + Math.round(v - cap) + '</span>'
+                 : '<span class="ok">' + etq + ': ' + Math.round(v) + '/' + cap + ' (' + Math.round(pct) + '%)</span>');
+}
+
+function renderPanel(){
+  const res = {};
+  let totalKg = 0;
+  clientes.forEach(c => {
+    const r = c.ruta || "Sin ruta";
+    if(!res[r]) res[r] = {n: 0, kg: 0, kav: 0, car: 0, gan: 0, color: colorDe(c.ruta)};
+    res[r].n++; res[r].kg += c.peso; totalKg += c.peso;
+    res[r].kav += Number(c.kavetas)  || 0;
+    res[r].car += Number(c.cartones) || 0;
+    res[r].gan += Number(c.ganchos)  || 0;
+  });
+  const hayKav = Object.keys(res).some(r => res[r].kav > 0);
+  const hayCar = Object.keys(res).some(r => res[r].car > 0);
+  const hayGan = Object.keys(res).some(r => res[r].gan > 0);
+
+  const claves = Object.keys(res).sort((a, b) =>
+    (a === "Sin ruta") - (b === "Sin ruta") || a.localeCompare(b));
+
+  let html = "<h3>Rutas " + FECHA + "</h3>";
+  html += '<div class="fila verbtns"><span class="mini">Ver:</span>' +
+          '<button id="verTodas">Todas</button><button id="verNinguna">Ninguna</button></div>';
+
+  claves.forEach(r => {
+    const info = res[r];
+    const cap = capacidadDe(r);
+    const vis = filtros[r] !== false;
+    let kmtxt = "";
+    if(ordenKm[r] !== undefined) kmtxt = '<span class="mini">~' + Math.round(ordenKm[r]) + ' km</span>';
+
+    let camionHTML = "";
+    if(r !== "Sin ruta"){
+      const asig = asignaciones[r] || "";
+      let opts = '<option value="">— sin camión —</option>';
+      Object.keys(flota).sort().forEach(cod => {
+        const f = flota[cod] || {};
+        const prohibido = camionRestringido(cod);
+        opts += '<option value="' + cod + '"' + (cod === asig ? " selected" : "") + '>' +
+                (prohibido ? "🚫 " : "") +
+                cod + " — " + (f.transporte || "") + (f.placa ? " (" + f.placa + ")" : "") + '</option>';
+      });
+      if(asig && !flota[asig])
+        opts += '<option value="' + asig + '" selected>' + asig + " (no en flota)</option>";
+      const miniCap = (asig && flota[asig])
+        ? '<span class="mini">' + Math.round(Number(flota[asig].kg) || 0) + ' kg · ' +
+          (Number(flota[asig].kavetas) || 0) + ' kav · ' + (Number(flota[asig].ganchos) || 0) + ' gan</span>'
+        : "";
+      camionHTML = '<div class="fila wrap"><select class="camion" data-ruta="' + esc(r) + '">' + opts + '</select>' + miniCap + '</div>';
+
+      if(asig && camionRestringido(asig)){
+        const d = fechaSalida();
+        camionHTML += '<div class="fila wrap"><span class="excede">⚠ Pico y placa ' +
+                      DIAS_SEM[d.getDay()] + ': ' + (flota[asig].placa || "?") +
+                      ' no puede salir con esta ruta</span></div>';
+      }
+    }
+
+    let extra = "";
+    extra += barra(info.kg, cap.kg, "kg");
+    if(hayKav) extra += barra(info.kav, cap.kavetas, "kavetas");
+    if(hayGan) extra += barra(info.gan, cap.ganchos, "ganchos");
+
+    // Fila principal (con ✂ en lugar del campo de capacidad)
+    html += '<div class="fila wrap">' +
+            '<input type="checkbox" data-ver="' + esc(r) + '"' + (vis ? " checked" : "") + '>' +
+            '<span class="chip" style="background:' + info.color + '"></span>' +
+            '<span class="nombre">' + r + '</span>' +
+            '<span>' + info.n + ' cli</span>' +
+            '<span class="kg">' + Math.round(info.kg) + ' kg</span>' +
+            (hayCar ? '<span class="mini">' + Math.round(info.car) + ' cart</span>' : "") + kmtxt +
+            (r !== "Sin ruta" ? '<button class="divBtn" data-ruta="' + esc(r) + '" title="Dividir esta ruta">✂</button>' : "") +
+            '</div>';
+
+    // Editor de división: justo debajo de la fila de su ruta
+    if(division && division.ruta === r){
+      const unCliente = info.n === 1;
+      html += '<div class="editor">' +
+              '<span class="mini">Original:</span><input id="divOrig" value="' + esc(r) + '">' +
+              '<span class="mini">Nueva:</span><input id="divNueva" placeholder="nombre nueva ruta">';
+      if(unCliente){
+        html += '<span class="mini">% carga a nueva:</span><input id="divPct" class="pct" type="number" min="1" max="99" value="50">' +
+                '<button id="btnDivCarga">✂ Dividir carga</button>';
+      } else {
+        html += '<button id="btnDivZonas">✂ Dividir por zonas</button>' +
+                '<span class="mini">luego dibujá zonas sobre los clientes que pasan</span>';
+      }
+      html += '<button id="btnDivCancel">✕</button></div>';
+    }
+
+    html += camionHTML + extra;
+  });
+
+  html += '<div class="fila total"><span class="nombre">TOTAL</span>' +
+          '<span>' + clientes.length + ' cli</span>' +
+          '<span class="kg">' + Math.round(totalKg) + ' kg</span>' +
+          (hayCar ? '<span class="mini">' + Math.round(Object.values(res).reduce((s, i) => s + i.car, 0)) + ' cart</span>' : "") +
+          '</div>';
+  document.getElementById("panel").innerHTML = html;
+
+  document.querySelectorAll("#panel [data-ver]").forEach(cb => cb.onchange = () => {
+    filtros[cb.dataset.ver] = cb.checked;
+    actualizarVisibilidad();
+  });
+  const vt = document.getElementById("verTodas"), vn = document.getElementById("verNinguna");
+  if(vt) vt.onclick = () => { claves.forEach(r => filtros[r] = true);  renderPanel(); actualizarVisibilidad(); };
+  if(vn) vn.onclick = () => { claves.forEach(r => filtros[r] = false); renderPanel(); actualizarVisibilidad(); };
+
+  document.querySelectorAll("#panel .camion").forEach(sel => sel.onchange = () => {
+    const cod = sel.value, ruta = sel.dataset.ruta;
+    if(!cod){ delete asignaciones[ruta]; hayCambios = true; renderPanel(); return; }
+    const enOtra = Object.keys(asignaciones).find(r2 => r2 !== ruta && asignaciones[r2] === cod);
+    if(enOtra && !confirm(cod + " ya está asignado a la ruta " + enOtra + ".\n¿Reasignarlo a " + ruta + "?")){
+      renderPanel(); return;
+    }
+    if(enOtra) delete asignaciones[enOtra];
+    asignaciones[ruta] = cod;
+    hayCambios = true;
+    renderPanel();
+    let aviso = cod + " (" + ((flota[cod] && flota[cod].transporte) || "?") + ") → " + ruta;
+    if(camionRestringido(cod)) aviso += "  ⚠ PICO Y PLACA el día de salida";
+    estado(aviso);
+  });
+
+  document.querySelectorAll("#panel .divBtn").forEach(b => b.onclick = () => abrirDivision(b.dataset.ruta));
+
+  const bC = document.getElementById("btnDivCarga");
+  if(bC) bC.onclick = ejecutarDivCarga;
+  const bZ = document.getElementById("btnDivZonas");
+  if(bZ) bZ.onclick = activarDivisionZonas;
+  const bX = document.getElementById("btnDivCancel");
+  if(bX) bX.onclick = () => { division = null; renderPanel(); estado("División cancelada"); };
+}
+
+function actualizarVisibilidad(){
+  clientes.forEach((c, i) => {
+    if(visible(c)) marcadores[i].addTo(map);
+    else map.removeLayer(marcadores[i]);
+  });
+}
+
+// ============================================================
+//  DIVISIÓN DE RUTA (✂ por ruta, editor debajo de la fila)
+// ============================================================
+function abrirDivision(r){
+  modoDividir = null;
+  if(division && division.ruta === r){ division = null; renderPanel(); return; } // toggle
+  const nCli = clientes.filter(c => c.ruta === r).length;
+  if(nCli === 0){ estado("La ruta no tiene clientes"); return; }
+  division = {ruta: r};
+  renderPanel();
+  estado(nCli === 1
+    ? "Un solo cliente: se dividirá su carga entre las dos rutas (50% por defecto)"
+    : "Escribí los nombres y activá la división por zonas");
+}
+
+function leerNombresDivision(){
+  const inpO = document.getElementById("divOrig"), inpN = document.getElementById("divNueva");
+  if(!inpO || !inpN) return null;
+  return {nombreOrig: inpO.value.trim(), nombreNueva: inpN.value.trim()};
+}
+
+function validarNombresDivision(nombreOrig, nombreNueva){
+  if(!nombreNueva){ estado("Poné el nombre de la nueva ruta"); return false; }
+  if(nombreNueva === division.ruta){ estado("La nueva ruta no puede llamarse igual que la original"); return false; }
+  const existentes = [...new Set(clientes.map(c => c.ruta).filter(x => x !== null))];
+  if(existentes.indexOf(nombreNueva) >= 0){ estado("Ya existe una ruta con el nombre '" + nombreNueva + "'"); return false; }
+  if(nombreOrig && nombreOrig !== division.ruta && existentes.indexOf(nombreOrig) >= 0){
+    estado("Ya existe una ruta con el nombre '" + nombreOrig + "'"); return false;
+  }
+  return true;
+}
+
+// Renombrar la ruta original (queda registrado en el historial para poder deshacer)
+function renombrarRuta(viejo, nuevo){
+  const lote = [];
+  clientes.forEach((c, i) => {
+    if(c.ruta === viejo){ lote.push({i: i, de: viejo}); c.ruta = nuevo; pintar(i); }
+  });
+  if(lote.length) historial.push(lote);
+  hayCambios = true;
+}
+
+// Caso: la ruta tiene UN solo cliente -> dividir su carga (50% por defecto)
+function ejecutarDivCarga(){
+  if(!division) return;
+  const nombres = leerNombresDivision();
+  if(!nombres) return;
+  if(!validarNombresDivision(nombres.nombreOrig, nombres.nombreNueva)) return;
+
+  let pct = Number(document.getElementById("divPct").value);
+  if(!isFinite(pct) || pct <= 0 || pct >= 100) pct = 50;
+
+  const idxFuente = clientes.findIndex(c => c.ruta === division.ruta);
+  if(idxFuente < 0){ estado("No encontré el cliente de la ruta"); return; }
+  const f = clientes[idxFuente];
+
+  // valores originales (para poder deshacer)
+  const pesoOrig = f.peso;
+  const kavOrig = Number(f.kavetas) || 0;
+  const carOrig = Number(f.cartones) || 0;
+  const ganOrig = Number(f.ganchos) || 0;
+
+  let nombreOrigenFinal = division.ruta;
+  if(nombres.nombreOrig && nombres.nombreOrig !== division.ruta){
+    nombreOrigenFinal = nombres.nombreOrig;
+    renombrarRuta(division.ruta, nombres.nombreOrig);
+  }
+
+  // mitad que pasa a la nueva ruta
+  const mitad = Object.assign({}, f);
+  mitad.ruta = nombres.nombreNueva;
+  mitad.peso = pesoOrig * pct / 100;
+  mitad.kavetas = kavOrig * pct / 100;
+  mitad.cartones = carOrig * pct / 100;
+  mitad.ganchos = ganOrig * pct / 100;
+
+  // la fuente se queda con el resto
+  f.peso = pesoOrig - mitad.peso;
+  f.kavetas = kavOrig - mitad.kavetas;
+  f.cartones = carOrig - mitad.cartones;
+  f.ganchos = ganOrig - mitad.ganchos;
+
+  clientes.push(mitad);
+  const idxNuevo = clientes.length - 1;
+  const col = colorDe(nombres.nombreNueva);
+  marcadores[idxNuevo] = L.circleMarker([mitad.lat, mitad.lon], {
+      radius: 5 + 7 * (mitad.peso / maxPeso),
+      color: col, fillColor: col, fillOpacity: .85
+    })
+    .bindPopup(popupHTML(mitad))
+    .on("click", () => moverConClic(idxNuevo))
+    .addTo(map);
+
+  historial.push({tipo: "split", nuevoIdx: idxNuevo, fuenteIdx: idxFuente,
+                  pesoOrig: pesoOrig, kavOrig: kavOrig, carOrig: carOrig, ganOrig: ganOrig});
+
+  hayCambios = true;
+  invalidarOrden();
+  division = null;
+  poblarDestino();
+  pintar(idxFuente);
+  renderPanel();
+  estado("✂ Carga dividida: " + Math.round(mitad.peso) + " kg → '" + nombres.nombreNueva +
+         "' · " + Math.round(f.peso) + " kg quedan en '" + nombreOrigenFinal + "'");
+}
+
+// Caso: varios clientes -> renombrar y pasar clientes dibujando zonas
+function activarDivisionZonas(){
+  if(!division) return;
+  const nombres = leerNombresDivision();
+  if(!nombres) return;
+  if(!validarNombresDivision(nombres.nombreOrig, nombres.nombreNueva)) return;
+
+  if(nombres.nombreOrig && nombres.nombreOrig !== division.ruta){
+    renombrarRuta(division.ruta, nombres.nombreOrig);
+    division.ruta = nombres.nombreOrig;
+  }
+  modoDividir = {origen: division.ruta, nueva: nombres.nombreNueva};
+  colorDe(nombres.nombreNueva);
+  division = null;
+  poblarDestino();
+  renderPanel();
+  estado("✂ Dibujá zonas sobre los clientes de '" + modoDividir.origen + "' que pasan a '" +
+         modoDividir.nueva + "'. Podés repetir zonas. ESC termina.");
+}
+
+// ============================================================
+//  MOVER CON CLIC (de a uno)
+// ============================================================
+function moverConClic(i){
+  if(!document.getElementById("modoClic").checked) return;
+  const destino = document.getElementById("destino").value;
+  const nueva = destino === "" ? null : destino;
+  const c = clientes[i];
+  if(c.ruta === nueva) return;
+  historial.push([{i: i, de: c.ruta}]);
+  c.ruta = nueva;
+  pintar(i);
+  flash(i);
+  marcadores[i].closePopup();
+  invalidarOrden();
+  hayCambios = true;
+  renderPanel();
+  estado(c.clnt + " → " + (nueva || "Sin ruta"));
+}
+
+// ============================================================
+//  DIBUJO DE ZONAS (normal + modo dividir)
+// ============================================================
+map.pm.addControls({
+  position: "topleft",
+  drawPolygon: true, drawRectangle: true, drawCircle: true,
+  drawMarker: false, drawPolyline: false, drawCircleMarker: false, drawText: false,
+  editMode: false, dragMode: false, cutPolygon: false, removalMode: false, rotateMode: false
+});
+map.on("pm:create", e => asignarZona(e.layer));
+
+function dentroDe(capa, lat, lon){
+  if(capa instanceof L.Circle) return map.distance(capa.getLatLng(), [lat, lon]) <= capa.getRadius();
+  return turf.booleanPointInPolygon(turf.point([lon, lat]), capa.toGeoJSON());
+}
+
+function asignarZona(capa){
+  let nueva, soloOrigen = null;
+  if(modoDividir){
+    soloOrigen = modoDividir.origen;
+    nueva = modoDividir.nueva;
+  } else {
+    nueva = document.getElementById("destino").value === "" ? null : document.getElementById("destino").value;
+  }
+
+  const cambios = [];
+  let ocultos = 0, ignorados = 0;
+  clientes.forEach((c, i) => {
+    if(!dentroDe(capa, c.lat, c.lon)) return;
+    if(soloOrigen !== null && c.ruta !== soloOrigen){ ignorados++; return; }
+    if(c.ruta === nueva) return;
+    if(soloOrigen === null && !visible(c)){ ocultos++; return; }
+    cambios.push({i: i, de: c.ruta});
+    c.ruta = nueva;
+    pintar(i);
+    flash(i);
+  });
+  capa.remove();
+
+  if(modoDividir){
+    const origen = modoDividir.origen;
+    if(cambios.length){
+      historial.push(cambios);
+      const kg = Math.round(cambios.reduce((s, ch) => s + clientes[ch.i].peso, 0));
+      estado("✂ " + cambios.length + " clientes (" + kg + " kg) de '" + origen + "' → '" + nueva + "'" +
+             (ignorados ? " · " + ignorados + " de otras rutas no tocados" : "") +
+             ". Podés seguir dividiendo o ESC para terminar.");
+      invalidarOrden();
+      hayCambios = true;
+    } else {
+      estado("La zona no contiene clientes de '" + origen + "'. Seguí probando o ESC para terminar.");
+    }
+    renderPanel();
+    return;
+  }
+
+  if(cambios.length){
+    historial.push(cambios);
+    const kg = Math.round(cambios.reduce((s, ch) => s + clientes[ch.i].peso, 0));
+    estado(cambios.length + " clientes (" + kg + " kg) → " + (nueva || "Sin ruta") +
+           (ocultos ? " · " + ocultos + " ocultos sin cambios" : ""));
+    invalidarOrden();
+    hayCambios = true;
+  } else {
+    estado("La zona no contiene clientes visibles para reasignar");
+  }
+  renderPanel();
+}
+
+function pintar(i){
+  const c = clientes[i], m = marcadores[i];
+  const col = colorDe(c.ruta);
+  m.setStyle({color: col, fillColor: col});
+  m.setRadius(5 + 7 * (c.peso / maxPeso)); // el tamaño sigue al peso (importante tras dividir carga)
+  m.setPopupContent(popupHTML(c));
+  refrescarTooltip(i);
+}
+
+function flash(i){
+  const m = marcadores[i], orig = colorDe(clientes[i].ruta);
+  let t = 0;
+  const iv = setInterval(() => {
+    m.setStyle({fillColor: ++t % 2 ? "#000" : orig, color: t % 2 ? "#000" : orig});
+    if(t >= 6){ clearInterval(iv); pintar(i); }
+  }, 150);
+}
+
+// ============================================================
+//  DESHACER Y REVERTIR (soporta divisiones de carga)
+// ============================================================
+function deshacer(){
+  const cambios = historial.pop();
+  if(!cambios){ estado("Nada para deshacer"); return; }
+
+  if(!Array.isArray(cambios) && cambios.tipo === "split"){
+    const idx = cambios.nuevoIdx;
+    if(marcadores[idx]){ map.removeLayer(marcadores[idx]); delete marcadores[idx]; }
+    clientes.splice(idx, 1);
+    const f = clientes[cambios.fuenteIdx];
+    f.peso = cambios.pesoOrig;
+    f.kavetas = cambios.kavOrig;
+    f.cartones = cambios.carOrig;
+    f.ganchos = cambios.ganOrig;
+    pintar(cambios.fuenteIdx);
+    invalidarOrden(true);
+    poblarDestino();
+    renderPanel();
+    estado("División de carga deshecha");
+    return;
+  }
+
+  cambios.forEach(ch => { clientes[ch.i].ruta = ch.de; pintar(ch.i); });
+  invalidarOrden();
+  renderPanel();
+  estado("Última asignación deshecha");
+}
+document.getElementById("btnUndo").onclick = deshacer;
+document.addEventListener("keydown", e => {
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z"){ e.preventDefault(); deshacer(); }
+});
+
+function revertir(){
+  // quitar clientes creados por divisiones de carga
+  while(clientes.length > original.length){
+    const idx = clientes.length - 1;
+    if(marcadores[idx]){ map.removeLayer(marcadores[idx]); delete marcadores[idx]; }
+    clientes.pop();
+  }
+  clientes.forEach((c, i) => { c.ruta = original[i]; pintar(i); });
+  historial = [];
+  invalidarOrden(true);
+  division = null; modoDividir = null;
+  poblarDestino();
+  renderPanel();
+  hayCambios = false;
+  estado("Vuelto a la distribución guardada en Firebase");
+}
+document.getElementById("btnReset").onclick = revertir;
+
+// ESC cancela: división por zonas, colocación de depósito o editor abierto
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape"){
+    if(modoDividir){
+      modoDividir = null;
+      estado("División por zonas finalizada");
+    } else if(modoDepot){
+      modoDepot = false;
+      map.getContainer().style.cursor = "";
+      estado("Colocación del depósito cancelada");
+    } else if(division){
+      division = null;
+      renderPanel();
+      estado("División cancelada");
+    }
+  }
+});
+
+// ============================================================
+//  ORDEN DE VISITA (vecino más cercano desde el depósito)
+// ============================================================
+function invalidarOrden(silencioso){
+  if(capasOrden.length){
+    capasOrden.forEach(p => map.removeLayer(p));
+    capasOrden = [];
+    ordenKm = {};
+    clientes.forEach(c => delete c.orden);
+    if(!silencioso) estado("Orden invalidado: recalculá con 🧭 si lo necesitás");
+  }
+}
+
+function calcularOrden(){
+  if(DEPOT.lat === null){
+    estado("Primero definí el depósito (🏠 buscar dirección o 📍 clic en mapa)"); return;
+  }
+  invalidarOrden(true);
+  const rutas = [...new Set(clientes.map(c => c.ruta).filter(r => r !== null))];
+  let conOrden = 0;
+
+  rutas.forEach(r => {
+    const grupo = clientes.map((c, i) => ({c: c, i: i})).filter(o => o.c.ruta === r);
+    if(!grupo.length) return;
+
+    let actual = L.latLng(DEPOT.lat, DEPOT.lon);
+    const restantes = grupo.slice();
+    const secuencia = [];
+    let km = 0;
+
+    while(restantes.length){
+      let mejor = 0, mejorD = Infinity;
+      restantes.forEach((o, idx) => {
+        const d = map.distance(actual, [o.c.lat, o.c.lon]);
+        if(d < mejorD){ mejorD = d; mejor = idx; }
+      });
+      const elegido = restantes.splice(mejor, 1)[0];
+      km += mejorD;
+      elegido.c.orden = secuencia.length + 1;
+      secuencia.push([elegido.c.lat, elegido.c.lon]);
+      actual = L.latLng(elegido.c.lat, elegido.c.lon);
+      conOrden++;
+    }
+
+    ordenKm[r] = km / 1000;
+    capasOrden.push(
+      L.polyline([[DEPOT.lat, DEPOT.lon]].concat(secuencia),
+                 {color: colorDe(r), dashArray: "6 6", weight: 3, opacity: .75}).addTo(map)
+    );
+  });
+
+  clientes.forEach(c => { if(c.ruta === null) delete c.orden; });
+  refrescarTodosTooltips();
+  clientes.forEach((c, i) => marcadores[i].setPopupContent(popupHTML(c)));
+  renderPanel();
+  estado(conOrden ? "Orden calculado: vecino más cercano desde " + DEPOT.nombre +
+                    " (los números quedan guardados con la ruta)"
+                  : "No hay clientes con ruta para ordenar");
+}
+document.getElementById("btnOrden").onclick = calcularOrden;
+
+// ============================================================
+//  ETIQUETAS ON/OFF
+// ============================================================
+document.getElementById("etiquetas").onchange = refrescarTodosTooltips;
+
+// ============================================================
+//  EXPORTAR CSV
+// ============================================================
+function exportarCSV(){
+  const filas = [["RUTA","CODC","CLNT","SECTOR","HORARIOS","PRIORIDAD","PESO","KAVETAS","CARTONES","GANCHOS","ORDEN","CAMION","LAT","LON"]];
+  clientes.concat(sinCoord).forEach(c =>
+    filas.push([c.ruta || "", c.codc || "", c.clnt || "", c.sector || "",
+                c.horarios || "", c.prioridad || "", c.peso || 0,
+                c.kavetas || 0, c.cartones || 0, c.ganchos || 0,
+                c.orden || "", asignaciones[c.ruta] || "", c.lat || "", c.lon || ""]));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\ufeff" + filas.map(f => f.join(";")).join("\n")], {type: "text/csv"}));
+  a.download = "rutas_" + FECHA + ".csv";
+  a.click();
+}
+document.getElementById("btnCSV").onclick = exportarCSV;
+
+// ============================================================
+//  GUARDAR EN FIREBASE (rutas + asignaciones + histórico)
+// ============================================================
+document.getElementById("btnGuardar").onclick = () => {
+  if(!clientes.length){ estado("No hay clientes para guardar"); return; }
+  if(!confirm("¿Guardar la distribución actual? Se reemplaza la lista del " + FECHA + " en Firebase.")) return;
+
+  let quien = localStorage.getItem("operador");
+  if(!quien){
+    quien = prompt("Tu nombre (para el histórico de cambios):");
+    if(quien === null){ estado("Guardado cancelado"); return; }
+    quien = quien.trim() || "anónimo";
+    localStorage.setItem("operador", quien);
+  }
+
+  const salida = clientes.map(c => {
+    const copia = Object.assign({}, c);
+    copia.peso = Math.round(c.peso);
+    copia.orden = c.orden || null;
+    return copia;
+  }).concat(sinCoord);
+
+  const resumen = {};
+  let totalKg = 0;
+  clientes.forEach(c => {
+    const r = c.ruta || "Sin ruta";
+    if(!resumen[r]) resumen[r] = {n: 0, kg: 0};
+    resumen[r].n++; resumen[r].kg += Math.round(c.peso); totalKg += c.peso;
+  });
+
+  const http = new XMLHttpRequest();
+  http.open("PUT", FIREBASE_URL + "/rutas/" + FECHA + ".json" + authQS(), true);
+  http.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
+  http.onload = () => {
+    if(http.status !== 200){ estado("Error " + http.status + ": " + http.responseText); return; }
+
+    const asigSalida = {};
+    Object.keys(asignaciones).forEach(r => {
+      if(r === "Sin ruta") return;
+      const cp = capacidadDe(r);
+      asigSalida[claveFirebase(r)] = {
+        ruta: r, camion: asignaciones[r],
+        kg: cp.kg, kavetas: cp.kavetas, ganchos: cp.ganchos
+      };
+    });
+    const a = new XMLHttpRequest();
+    a.open("PUT", FIREBASE_URL + "/asignaciones/" + FECHA + ".json" + authQS(), true);
+    a.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
+    a.send(JSON.stringify(asigSalida));
+
+    const h = new XMLHttpRequest();
+    h.open("POST", FIREBASE_URL + "/historial_rutas/" + FECHA + ".json" + authQS(), true);
+    h.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
+    h.send(JSON.stringify({
+      cuando: new Date().toISOString(),
+      quien: quien,
+      clientes: clientes.length,
+      totalKg: Math.round(totalKg),
+      resumen: resumen
+    }));
+
+    original = clientes.map(c => c.ruta);
+    historial = [];
+    hayCambios = false;
+    estado("Guardado en Firebase ✔ (" + clientes.length + " clientes, " + Math.round(totalKg) + " kg)");
+  };
+  http.send(JSON.stringify(salida));
+};
+
+// ============================================================
+//  AVISO AL CERRAR SIN GUARDAR
+// ============================================================
+window.onbeforeunload = e => {
+  if(hayCambios){ e.preventDefault(); e.returnValue = ""; }
+};
+
+// ============================================================
+//  SELECTOR DE FECHA
+// ============================================================
+const inputFecha = document.getElementById("fecha");
+inputFecha.value = FECHA;
+inputFecha.onchange = () => {
+  if(!inputFecha.value) return;
+  if(hayCambios && !confirm("Hay cambios sin guardar en " + FECHA + ". ¿Cambiar de fecha igual?")) {
+    inputFecha.value = FECHA;
+    return;
+  }
+  FECHA = inputFecha.value;
+  actualizarInfoPicoPlaca();
+  cargarDatos();
+};
+
+// ============================================================
+//  ARRANQUE
+// ============================================================
+actualizarInfoPicoPlaca();
+cargarFlota().then(cargarDeposito).then(cargarDatos);
+</script>
+</body>
+</html>
