@@ -29,7 +29,7 @@
     .sb-stat.s-tr{background:rgba(232,145,58,.1);color:#e8913a;border:1px solid rgba(232,145,58,.2)}
     .sb-stat.s-gp{background:rgba(52,211,153,.1);color:#34d399;border:1px solid rgba(52,211,153,.2)}
     .sb-stat.s-pr{background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.2)}
-    .sb-stat.s-pn{background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.1)}
+    .sb-stat.s-pn{background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.2)}
     .sb-stat.s-gap{background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25)}
     .sb-stat.s-so{background:rgba(255,209,102,.1);color:#ffd166;border:1px solid rgba(255,209,102,.25)}
     /* ★ P-15: chips del plan */
@@ -173,13 +173,18 @@
     /* ============================================================
        MAPAMONITOR — consumidor del puente con monitor.html
        ★ P-15 PLAN vs EJECUCION (Firebase)
-       ★ PATCH M2 — entregas coincidentes (~10 m, mismo codigo u otro
+       ★ M2 — entregas coincidentes (~10 m, mismo codigo u otro
             transporte): UN marcador con insignia xN y popup lista.
-       ★ PATCH M3 — coordenadas copiables por separado: lat, lng o ambas.
-       ★ PATCH M4 — delegacion global de popups: el clic en una entrega
-            de la lista NUNCA cierra el popup (stopPropagation en fase
-            captura) y "volver a la lista" es instantaneo (setContent
-            directo sobre el popup del marcador, sin re-wiring).
+       ★ M3 — coordenadas copiables por separado: lat, lng o ambas.
+       ★ M4 — delegacion global de popups: el clic en una entrega
+            de la lista NUNCA cierra el popup y "volver a la lista"
+            es instantaneo (setContent directo, sin re-wiring).
+       ★ M5 — popup de puntos xN sobrevive los re-renders del push:
+            se captura y restaura el HTML visible (detalles tal cual,
+            lista fresca), busqueda por clave de coincidencia (~11 m)
+            en cualquier grupo (el marcador representante puede
+            cambiar entre renders), autoPan rapido, sin parpadeos y
+            visibilidad correcta de agrupados de transportes ocultos.
        ============================================================ */
 
     /* ================= ★ P-15: FIREBASE ================= */
@@ -260,7 +265,7 @@
     function fechaCorta(iso){ if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || ''; return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
 
     /* ============================================================
-       ★ M2/M3/M4 — utilidades de coincidentes + portapapeles
+       ★ M2/M3/M4/M5 — utilidades de coincidentes + portapapeles
        ============================================================ */
     var UMB_COINC_M = 10; /* metros: umbral de "misma ubicacion" */
     var COINC_DE = {};    /* clave "lat|lng" redondeada -> grupo del render actual */
@@ -362,15 +367,19 @@
       }
       return found;
     }
-    /* ★ M4: reconstruye la lista plana con indices y refresca los
-       popups multipunto para que data-reg quede vigente */
+    /* ★ M4 + M5: reconstruye la lista plana con indices. NO toca el
+       contenido de popups abiertos (evita parpadeo/pérdida de vista):
+       la restauración final se encarga de dejarlos consistentes. */
     function reconstruirCoincList() {
       COINC_LIST = [];
       Object.keys(COINC_DE).forEach(function(k) {
         var reg = COINC_DE[k];
         reg.idx = COINC_LIST.length;
         COINC_LIST.push(reg);
-        if (reg.marker && reg.multipunto) reg.marker.setPopupContent(htmlListaCoincidencias(reg));
+        if (reg.marker && reg.multipunto
+            && !(reg.marker.isPopupOpen && reg.marker.isPopupOpen())) {
+          reg.marker.setPopupContent(htmlListaCoincidencias(reg));
+        }
       });
     }
 
@@ -482,7 +491,10 @@
             bd.textContent = '\u00d7' + reg.items.length;
           }
         }
-        reg.marker.setPopupContent(htmlListaCoincidencias(reg));
+        /* ★ M5: no pisar el contenido si el popup esta abierto */
+        if (!(reg.marker.isPopupOpen && reg.marker.isPopupOpen())) {
+          reg.marker.setPopupContent(htmlListaCoincidencias(reg));
+        }
       }
       return false;
     }
@@ -687,27 +699,73 @@
       g.addTo(map);
     }
 
-    /* ★ #1: capturar popup abierto antes de destruir las capas */
+    /* ============================================================
+       ★ #1 + M5 — preservación del popup abierto entre renders
+       ============================================================ */
+    /* ★ M5: captura tambien el HTML exacto que estaba viendo el
+       usuario (lista o detalles) para restaurarlo tal cual */
     function capturarEstadoVisual() {
       var pop = null;
       Object.keys(groups).forEach(function(k) {
         groups[k].eachLayer(function(l) {
           if (l.isPopupOpen && l.isPopupOpen() && l.getLatLng) {
             pop = { codigo: k, lat: l.getLatLng().lat, lng: l.getLatLng().lng };
+            try {
+              var pc = l.getPopup();
+              pop.html = (pc && pc.getContent) ? pc.getContent() : null;
+            } catch (e) { pop.html = null; }
           }
         });
       });
       return pop;
     }
+    /* ★ M5: restauración en cascada:
+       (a) coordenada exacta en su grupo original,
+       (b) misma clave de coincidencia (~11 m) en CUALQUIER grupo —
+           cubre los multipunto cuyo marcador representante cambió de
+           posición/transporte entre renders. Restaura el HTML capturado;
+           si era la lista de un multipunto, se regenera fresca (los
+           índices del render anterior pueden estar desfasados). */
     function restaurarEstadoVisual(pop) {
-      if (!pop || !groups[pop.codigo]) return;
-      groups[pop.codigo].eachLayer(function(l) {
-        if (l.getLatLng
-            && Math.abs(l.getLatLng().lat - pop.lat) < 1e-7
-            && Math.abs(l.getLatLng().lng - pop.lng) < 1e-7) {
-          l.openPopup();
-        }
-      });
+      if (!pop) return;
+      var destino = null;
+
+      /* (a) coordenada exacta en el grupo original */
+      if (groups[pop.codigo]) {
+        groups[pop.codigo].eachLayer(function(l) {
+          if (destino || !l.getLatLng) return;
+          if (Math.abs(l.getLatLng().lat - pop.lat) < 1e-7
+              && Math.abs(l.getLatLng().lng - pop.lng) < 1e-7) destino = l;
+        });
+      }
+
+      /* (b) M5: clave de coincidencia en cualquier grupo (multipunto) */
+      if (!destino) {
+        var kc = claveCoinc(pop.lat, pop.lng);
+        Object.keys(groups).forEach(function(k) {
+          if (k === '__plan__' || destino) return;
+          groups[k].eachLayer(function(l) {
+            if (destino || !l.getLatLng || !l.getPopup) return;
+            if (l instanceof L.Marker && claveCoinc(l.getLatLng().lat, l.getLatLng().lng) === kc) destino = l;
+          });
+        });
+      }
+
+      if (!destino) return;
+      var pc = destino.getPopup();
+      if (!pc) { destino.openPopup(); return; }
+
+      /* restaurar la vista que tenía: detalles tal cual; lista fresca
+         para multipunto (índices vigentes) */
+      if (pop.html && typeof pop.html === 'string' && pop.html.indexOf('pp-lista') === -1) {
+        pc.setContent(pop.html);          /* detalles: tal cual estaban */
+      } else {
+        var reg = null;
+        Object.keys(COINC_DE).forEach(function(k2) { if (COINC_DE[k2].marker === destino) reg = COINC_DE[k2]; });
+        if (reg && reg.multipunto) pc.setContent(htmlListaCoincidencias(reg));
+        else if (pop.html) pc.setContent(pop.html);
+      }
+      destino.openPopup();
     }
 
     /* ★ Render de capas: reconstruible sin recrear el mapa (live updates) */
@@ -794,7 +852,7 @@
           }
 
           /* ============================================================
-             ★ M2/M4 — render de puntos con agrupamiento de coincidentes
+             ★ M2/M4/M5 — render de puntos con agrupamiento de coincidentes
              ============================================================ */
           var seq = enRuta.concat(pend);
           var coords = [], nPenT = 0;
@@ -832,9 +890,8 @@
               var m = L.marker([p.lat, p.lng], { icon: icon });
               reg.marker = m;
               m.__grupo = g;
-              /* popup inicial: detalles directos (si hay coincidencia,
-                 registrarCoincidente lo convierte en lista seleccionable) */
-              m.bindPopup(construirDetallesG(t, p, num, gaps), { maxWidth: 260 });
+              /* ★ M5: autoPan rapido (casi imperceptible) */
+              m.bindPopup(construirDetallesG(t, p, num, gaps), { maxWidth: 260, autoPan: { duration: 0.15 } });
               if (p.sector) {
                 m.bindTooltip(esc(p.sector), { permanent: true, direction: 'right', offset: [13, 0], className: 'lbl-sector', opacity: 1 });
               }
@@ -892,9 +949,10 @@
           map.fitBounds(L.latLngBounds(allBounds), { padding: [40, 40], maxZoom: 16 });
           yaFit = true;
         }
-        /* ★ M4: indices de coincidentes vigentes (y popups de lista
-           refrescados con data-reg correcto) ANTES de restaurar */
+        /* ★ M4+M5: indices vigentes, visibilidad de agrupados y
+           restaurar el popup abierto (tal cual estaba) */
         reconstruirCoincList();
+        actualizarVisibilidadCoinc();
         restaurarEstadoVisual(popAbierto);
 
         renderPlanOverlay(cruce);
