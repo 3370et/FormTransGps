@@ -29,7 +29,7 @@
     .sb-stat.s-tr{background:rgba(232,145,58,.1);color:#e8913a;border:1px solid rgba(232,145,58,.2)}
     .sb-stat.s-gp{background:rgba(52,211,153,.1);color:#34d399;border:1px solid rgba(52,211,153,.2)}
     .sb-stat.s-pr{background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.2)}
-    .sb-stat.s-pn{background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.2)}
+    .sb-stat.s-pn{background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.1)}
     .sb-stat.s-gap{background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25)}
     .sb-stat.s-so{background:rgba(255,209,102,.1);color:#ffd166;border:1px solid rgba(255,209,102,.25)}
     /* ★ P-15: chips del plan */
@@ -73,8 +73,7 @@
     .mk-sin-origen .mk-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2.5px dashed #ffd166;animation:sinOrigenGiro 9s linear infinite;pointer-events:none}
     @keyframes sinOrigenPing{0%{transform:scale(1);opacity:.85}70%,100%{transform:scale(2.1);opacity:0}}
     @keyframes sinOrigenGiro{to{transform:rotate(360deg)}}
-    /* ★ #2: pulso blanco en el punto actual de rutas en proceso
-       (excluido si el punto tambien es sinOrigen: ese ya tiene su halo) */
+    /* ★ #2: pulso blanco en el punto actual de rutas en proceso */
     .mk-actual .mk-dot{position:relative}
     .mk-actual .mk-dot::before{content:"";position:absolute;inset:-2px;border-radius:50%;border:3px solid #fff;opacity:.8;animation:pulseActual 1.6s ease-out infinite;pointer-events:none}
     @keyframes pulseActual{0%{transform:scale(1);opacity:.8}100%{transform:scale(2.4);opacity:0}}
@@ -102,18 +101,18 @@
     .pp-row i{width:13px;text-align:center;font-size:9px;color:#565e74;flex-shrink:0}
     .pp-row a{color:#60a5fa;text-decoration:none;font-weight:600}
     .pp-row a:hover{text-decoration:underline}
-    /* ★ M3: coordenadas copiables por separado (lat / lng) */
+    /* ===== ★ M3: coordenadas copiables por separado (lat / lng / ambas) ===== */
     .pp-coord{font-family:'Space Grotesk',monospace;font-size:10px;color:#565e74;margin-top:5px;padding-top:5px;border-top:1px solid #22273a;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
     .pp-coord .pc-item{display:inline-flex;align-items:center;gap:4px;cursor:pointer;transition:color .15s;padding:1px 2px;border-radius:4px}
     .pp-coord .pc-item:hover{color:#60a5fa}
-    .pp-coord .pc-item i{font-size:9px;color:inherit;opacity:.7}
+    .pp-coord .pc-item i{font-size:9px;opacity:.7}
     .pp-coord .pc-item.copiado{color:#34d399 !important;animation:copiadoFade 1.4s ease}
     .pp-coord .pc-sep{color:#3a4054;user-select:none}
     .pp-coord .pc-ambos{display:inline-flex;align-items:center;gap:4px;margin-left:4px;cursor:pointer;color:#565e74;background:#191d28;border:1px solid #22273a;border-radius:5px;padding:2px 7px;font-size:9px;font-weight:700;transition:all .15s}
     .pp-coord .pc-ambos:hover{color:#e8913a;border-color:#e8913a}
     .pp-coord .pc-ambos.copiado{color:#34d399 !important;border-color:rgba(52,211,153,.4);animation:copiadoFade 1.4s ease}
     @keyframes copiadoFade{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
-    /* ===== ★ PATCH M2 — entregas coincidentes (mismo codigo u otro transporte) ===== */
+    /* ===== ★ M2: entregas coincidentes (mismo codigo u otro transporte) ===== */
     .mk-dot{position:relative}
     .mk-n{position:absolute;top:-9px;right:-11px;background:#ffd166;color:#0f1117;font-family:'Space Grotesk',sans-serif;font-size:9px;font-weight:800;border-radius:99px;padding:1px 5px;border:1.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.55);line-height:1.5;pointer-events:none}
     .pp-lista{display:flex;flex-direction:column;gap:5px;margin:4px 0 2px;padding:0;list-style:none}
@@ -173,33 +172,19 @@
   <script>
     /* ============================================================
        MAPAMONITOR — consumidor del puente con monitor.html
-       - Al cargar: lee payload de localStorage['pm_mapa_datos']
-       - Handshake: avisa al panel con postMessage {__mapaListo}
-       - Live updates: escucha {__mapaDatos} y re-renderiza sin
-         recargar (mantiene zoom, popup abierto y seleccion)
-       - Tick interno de 60s: refresca "inactivo X min" localmente
-       - Leyenda de sector: tooltip discreto por punto (toggle)
-       ★ P-15 PLAN vs EJECUCION (Firebase):
-         - Lee rutas/{fecha}/plan (generado por planificador.html)
-         - Matching punto capturado -> parada planificada
-           (codc -> nombre normalizado -> proximidad < 200 m)
-         - Orden real = rank de captura GPS dentro de la ruta
-         - Estados: en secuencia / fuera de secuencia / sin plan
-         - Diff ETA plan vs hora real de llegada
-         - Paradas sin captura: marcadores fantasma (toggle "Plan")
-       ★ Autenticación anónima (reglas: auth != null)
-       ★ PATCH M2 — ENTREGAS COINCIDENTES (misma ubicacion):
-         Dos o mas entregas —del mismo codigo o de transportes
-         distintos— en el mismo punto (~10 m) se renderizan como UN
-         solo marcador con insignia xN. Su popup lista las entregas
-         (con codigo de cliente y color/numero de cada transporte) y
-         cada una abre sus detalles completos con boton de vuelta.
-         Coordenadas copiables al portapapeles con un clic.
+       ★ P-15 PLAN vs EJECUCION (Firebase)
+       ★ PATCH M2 — entregas coincidentes (~10 m, mismo codigo u otro
+            transporte): UN marcador con insignia xN y popup lista.
+       ★ PATCH M3 — coordenadas copiables por separado: lat, lng o ambas.
+       ★ PATCH M4 — delegacion global de popups: el clic en una entrega
+            de la lista NUNCA cierra el popup (stopPropagation en fase
+            captura) y "volver a la lista" es instantaneo (setContent
+            directo sobre el popup del marcador, sin re-wiring).
        ============================================================ */
 
-    /* ================= ★ P-15: FIREBASE (misma config que el planificador) ================= */
+    /* ================= ★ P-15: FIREBASE ================= */
     var FIREBASE_CONFIG = {
-      apiKey: "AIzaSyCrnroA2yd2coEVyn6Jm-q8sM6rvOb6Y3k", authDomain: "datos-formulario-f3cde.firebaseapp.com", databaseURL: "https://datos-formulario-f3cde-default-rtdb.firebaseio.com",   /* ← COMPLETAR (databaseURL obligatoria) */
+      apiKey: "AIzaSyCrnroA2yd2coEVyn6Jm-q8sM6rvOb6Y3k", authDomain: "datos-formulario-f3cde.firebaseapp.com", databaseURL: "https://datos-formulario-f3cde-default-rtdb.firebaseio.com",
       projectId: "datos-formulario-f3cde", storageBucket: "datos-formulario-f3cde.firebasestorage.app", messagingSenderId: "1060204671476", appId: "1:1060204671476:web:a476539fa122fd04fa89a1"
     };
     var FB_OK = !!(FIREBASE_CONFIG.databaseURL);
@@ -207,12 +192,10 @@
     if (FB_OK) {
       try {
         firebase.initializeApp(FIREBASE_CONFIG);
-        /* ★ sesión anónima: satisface reglas auth != null (persistente entre recargas) */
         firebase.auth().signInAnonymously().catch(function(e) { console.error('Auth:', e.message); });
         fb = firebase.database();
       } catch (e) { FB_OK = false; }
     }
-    /* ★ espera a que la sesión anónima exista antes de leer */
     function esperarAuth() {
       return new Promise(function(resolve) {
         if (!FB_OK) return resolve(false);
@@ -226,18 +209,17 @@
     var map = null;
     var groups = {};
     var allBounds = [];
-    var yaFit = false;        /* fitBounds solo en el primer render */
-    var ocultos = {};         /* codigo -> true: transportes ocultos (persistente) */
-    var codigoActivo = null;  /* ★ #1: item seleccionado del sidebar (sobrevive re-render) */
-    var ultimoPayload = null; /* ★ #3: para el tick interno */
-    var etiquetasOn = true;   /* ★ leyenda de sector */
+    var yaFit = false;
+    var ocultos = {};
+    var codigoActivo = null;
+    var ultimoPayload = null;
+    var etiquetasOn = true;
 
     /* ★ P-15: estado del plan */
-    var planIdx = null;       /* índice del plan cargado */
-    var cruceActual = null;   /* último cruce plan vs ejecución */
-    var mostrarPlan = true;   /* toggle marcadores fantasma del plan */
+    var planIdx = null;
+    var cruceActual = null;
+    var mostrarPlan = true;
 
-    /* ★ #4: ocultos persistentes */
     try { ocultos = JSON.parse(localStorage.getItem('mapa_ocultos') || '{}'); } catch (e) { ocultos = {}; }
     try { etiquetasOn = localStorage.getItem('mapa_etiquetas') !== '0'; } catch (e) {}
     try { mostrarPlan = localStorage.getItem('mapa_plan') !== '0'; } catch (e) {}
@@ -278,10 +260,11 @@
     function fechaCorta(iso){ if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || ''; return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
 
     /* ============================================================
-       ★ PATCH M2 — utilidades de entregas coincidentes + portapapeles
+       ★ M2/M3/M4 — utilidades de coincidentes + portapapeles
        ============================================================ */
     var UMB_COINC_M = 10; /* metros: umbral de "misma ubicacion" */
     var COINC_DE = {};    /* clave "lat|lng" redondeada -> grupo del render actual */
+    var COINC_LIST = [];  /* lista plana con idx para los data-reg del popup */
 
     function copiarAlPortapapeles(txt, el) {
       function ok() {
@@ -298,35 +281,100 @@
       try { document.execCommand('copy'); cb(); } catch (e) {}
       document.body.removeChild(ta);
     }
-    /* ★ M3: HTML de coordenadas — cada valor copiable por separado
-       + boton para copiar ambas juntas "lat, lng" */
+    /* ★ M3: coordenadas — cada valor copiable por separado + "ambas" */
     function coordClickableHTML(lat, lng) {
       var la = Number(lat).toFixed(6), ln = Number(lng).toFixed(6);
       return '<span class="pp-coord">'
-        + '<span class="pc-item" data-coord="' + esc(la) + '" title="Clic para copiar latitud"><i class="fa-regular fa-copy"></i>' + la + '</span>'
+        + '<span class="pc-item" data-cmd="coord" data-val="' + esc(la) + '" title="Clic para copiar latitud"><i class="fa-regular fa-copy"></i>' + la + '</span>'
         + '<span class="pc-sep">,</span>'
-        + '<span class="pc-item" data-coord="' + esc(ln) + '" title="Clic para copiar longitud"><i class="fa-regular fa-copy"></i>' + ln + '</span>'
-        + '<span class="pc-ambos" data-coord="' + esc(la + ', ' + ln) + '" title="Clic para copiar ambas"><i class="fa-solid fa-clone"></i> ambas</span>'
+        + '<span class="pc-item" data-cmd="coord" data-val="' + esc(ln) + '" title="Clic para copiar longitud"><i class="fa-regular fa-copy"></i>' + ln + '</span>'
+        + '<span class="pc-ambos" data-cmd="coord" data-val="' + esc(la + ', ' + ln) + '" title="Clic para copiar ambas"><i class="fa-solid fa-clone"></i> ambas</span>'
         + '</span>';
     }
-    /* delegacion global: clic en lat, lng o "ambas" copia ese valor */
-    document.addEventListener('click', function(e) {
-      var c = e.target && e.target.closest ? e.target.closest('[data-coord]') : null;
-      if (!c || !c.classList.contains('pc-item') && !c.classList.contains('pc-ambos')) return;
-      e.stopPropagation();
-      copiarAlPortapapeles(c.getAttribute('data-coord'), c);
-    }, true);
-    /* ★ M2: redondeo de coordenadas para agrupar (~11 m -> 4 decimales) */
     function claveCoinc(lat, lng) {
       return lat.toFixed(4) + '|' + lng.toFixed(4);
     }
-    /* ★ M2: t del ultimo punto capturado de un transporte */
     function tActualDe(tq) {
       var mx = 0;
       (tq.puntos || []).forEach(function(q) { if (!q.pendiente && q.t != null && q.t > mx) mx = q.t; });
       return mx || null;
     }
-    /* ★ P-15 (M2): filas del plan para UN punto (depende solo del punto) */
+
+    /* ============================================================
+       ★ PATCH M4 — DELEGACION GLOBAL DE POPUPS
+       Todo el contenido interactivo del popup usa comandos data-cmd,
+       atendidos por UN solo listener en fase captura con
+       stopPropagation inmediato: el clic nunca llega al mapa, el
+       popup NUNCA se cierra al seleccionar una entrega, y "volver a
+       la lista" es un setContent directo (instantaneo, sin rewiring).
+       ============================================================ */
+    document.addEventListener('click', function(e) {
+      var c = e.target && e.target.closest ? e.target.closest('[data-cmd]') : null;
+      if (!c) return;
+      e.stopPropagation();   /* clave: el mapa nunca ve este clic */
+      e.preventDefault();
+
+      var cmd = c.getAttribute('data-cmd');
+
+      /* --- M3: copiar coordenadas (lat, lng o ambas) --- */
+      if (cmd === 'coord') {
+        copiarAlPortapapeles(c.getAttribute('data-val'), c);
+        return;
+      }
+
+      if (cmd !== 'item' && cmd !== 'back') return;
+
+      /* --- M4: encontrar el grupo de coincidentes del popup --- */
+      var reg = popupRegDe(c);
+      if (!reg || !reg.marker) return;
+      var p = reg.marker.getPopup();
+      if (!p) return;
+
+      /* --- volver a la lista: instantaneo --- */
+      if (cmd === 'back') {
+        p.setContent(htmlListaCoincidencias(reg));
+        return;
+      }
+
+      /* --- elegir una entrega: detalles sin cerrar el popup --- */
+      var it = reg.items[+c.getAttribute('data-ix')];
+      if (!it) return;
+      p.setContent(construirDetallesG(it.t, it.p, (it.p.pendiente ? '?' : it.num), it.gapsArr, reg.idx, true));
+    }, true);
+
+    /* ★ M4: dado un elemento dentro de un popup, encuentra su grupo
+       COINC_DE (via data-reg embebido; fallback por marcador abierto) */
+    function popupRegDe(el) {
+      var pp = (el.closest && el.closest('[data-reg]')) || (el.querySelector && el.querySelector('[data-reg]'));
+      if (pp) {
+        var ix = pp.getAttribute('data-reg');
+        if (ix != null && ix !== '' && COINC_LIST[+ix]) return COINC_LIST[+ix];
+      }
+      var popNode = (el.closest && el.closest('.leaflet-popup-content')) || null;
+      var found = null;
+      if (popNode) {
+        Object.keys(COINC_DE).forEach(function(k) {
+          if (found || !COINC_DE[k].marker) return;
+          var pe = COINC_DE[k].marker.getPopup();
+          var pel = pe ? pe.getElement() : null;
+          if (pel && pel.contains(popNode)) found = COINC_DE[k];
+        });
+      }
+      return found;
+    }
+    /* ★ M4: reconstruye la lista plana con indices y refresca los
+       popups multipunto para que data-reg quede vigente */
+    function reconstruirCoincList() {
+      COINC_LIST = [];
+      Object.keys(COINC_DE).forEach(function(k) {
+        var reg = COINC_DE[k];
+        reg.idx = COINC_LIST.length;
+        COINC_LIST.push(reg);
+        if (reg.marker && reg.multipunto) reg.marker.setPopupContent(htmlListaCoincidencias(reg));
+      });
+    }
+
+    /* ★ P-15 (M4): filas del plan para UN punto */
     function filasPlanQ(q) {
       var esPenQ = !!q.pendiente;
       var fx = '';
@@ -352,11 +400,12 @@
       }
       return fx;
     }
-    /* ★ M2: detalles completos de UNA entrega (transporte-agnostica) */
-    function construirDetallesG(tq, q, numQ, gapsArr) {
+    /* ★ M2: detalles completos de UNA entrega. regIdx/conBack se usan
+       desde la lista de coincidentes (delegacion M4) */
+    function construirDetallesG(tq, q, numQ, gapsArr, regIdx, conBack) {
       var esPenQ = !!q.pendiente;
       var col = tq.color;
-      var ph = '<div class="pp">';
+      var ph = '<div class="pp"' + (regIdx != null ? ' data-reg="' + regIdx + '"' : '') + '>';
       ph += '<div class="pp-num">' + (esPenQ ? 'Pendiente de captura' : 'Punto ' + numQ) + ' &middot; ' + esc(tq.codigo) + '</div>';
       ph += '<div class="pp-nombre" style="color:' + col + '">' + esc(q.nombre) + '</div>';
       if (q.codc) ph += '<div class="pp-row"><i class="fa-solid fa-barcode"></i><span class="pi-codc">' + esc(q.codc) + '</span></div>';
@@ -382,20 +431,21 @@
         }
       }
       ph += coordClickableHTML(q.lat, q.lng);
+      if (conBack) ph += '<button type="button" class="pp-back" data-cmd="back"><i class="fa-solid fa-arrow-left"></i> Volver a la lista</button>';
       ph += '</div>';
       return ph;
     }
-    /* ★ M2: popup lista de todas las entregas del punto (varios transportes) */
+    /* ★ M2/M4: popup lista de todas las entregas del punto */
     function htmlListaCoincidencias(reg) {
       var nT = {};
       reg.items.forEach(function(it) { nT[it.t.codigo] = true; });
       var tit = (Object.keys(nT).length > 1)
         ? (reg.items.length + ' entregas &middot; ' + Object.keys(nT).length + ' transportes')
         : (reg.items.length + ' entregas en esta ubicaci\u00f3n');
-      var h = '<div class="pp"><div class="pp-num">' + tit + '</div><div class="pp-lista">';
+      var h = '<div class="pp" data-reg="' + (reg.idx != null ? reg.idx : '') + '"><div class="pp-num">' + tit + '</div><div class="pp-lista">';
       reg.items.forEach(function(it, ix) {
         var q = it.p, tq = it.t;
-        h += '<button class="pp-item" data-ix="' + ix + '">'
+        h += '<button type="button" class="pp-item" data-cmd="item" data-ix="' + ix + '">'
           + '<span class="pi-num" style="background:' + tq.color + '">' + (q.pendiente ? '?' : it.num) + '</span>'
           + '<span class="pi-txt"><span class="pi-nombre">' + esc(q.nombre) + '</span>'
           + '<span class="pi-sub">' + (q.pendiente ? 'Pendiente' : esc(cuando(q.hora)))
@@ -405,9 +455,8 @@
       h += '</div></div>';
       return h;
     }
-    /* ★ M2: registro de coincidentes — devuelve true SOLO al primer punto
-       de cada ubicacion (ese crea el marcador); los siguientes actualizan
-       insignia, popup y mueven el marcador a la capa comun __coinc__ */
+    /* ★ M4: registro de coincidentes — el wiring del popup es delegacion
+       global, no se necesita popupopen por grupo */
     function registrarCoincidente(tq, p, num, gapsArr, gOrigen) {
       var k = claveCoinc(p.lat, p.lng);
       if (!COINC_DE[k]) COINC_DE[k] = { lat: p.lat, lng: p.lng, items: [], multipunto: false };
@@ -423,31 +472,7 @@
           }
           var gc = groups['__coinc__'];
           if (gc) gc.addLayer(reg.marker);
-          /* cablear el selector de lista -> detalles */
-          if (!reg.wired) {
-            reg.wired = true;
-            reg.marker.on('popupopen', function(ev) {
-              var pop = ev.popup;
-              function wire() {
-                var el = pop.getElement();
-                if (!el) return;
-                el.querySelectorAll('.pp-item').forEach(function(btn) {
-                  btn.onclick = function() {
-                    var it = reg.items[+btn.getAttribute('data-ix')];
-                    if (!it) return;
-                    var numQ = it.p.pendiente ? '?' : it.num;
-                    pop.setContent(construirDetallesG(it.t, it.p, numQ, it.gapsArr)
-                      + '<button class="pp-back"><i class="fa-solid fa-arrow-left"></i> Volver a la lista</button>');
-                    var bel = pop.getElement() ? pop.getElement().querySelector('.pp-back') : null;
-                    if (bel) bel.onclick = function() { pop.setContent(htmlListaCoincidencias(reg)); wire(); };
-                  };
-                });
-              }
-              wire();
-            });
-          }
         }
-        /* insignia xN */
         var el = reg.marker.getElement();
         if (el) {
           var dot = el.querySelector('.mk-dot');
@@ -483,13 +508,11 @@
         maxNativeZoom: 16, maxZoom: 19
       }).addTo(map);
       bindList();
-      /* ★ leyenda de sector: aplicar preferencia guardada */
       if (!etiquetasOn) {
         document.body.classList.add('sin-etiquetas');
         var b = document.getElementById('btnEtiquetas');
         b.classList.remove('on'); b.innerHTML = '<i class="fa-solid fa-tags"></i> Sectores';
       }
-      /* ★ auto-ocultar etiquetas a zoom bajo (menos de 13) */
       map.on('zoomend', function() {
         document.body.classList.toggle('zoom-lejos', map.getZoom() < 13);
       });
@@ -518,8 +541,6 @@
       return idx;
     }
 
-    /* Matching punto -> parada planificada:
-       1) codc exacto  2) nombre normalizado  3) proximidad < 200 m */
     function matchParada(p, usados) {
       if (!planIdx) return null;
       var ent = null;
@@ -542,16 +563,12 @@
       return ent;
     }
 
-    /* Cruce plan vs ejecución sobre T (transportes del payload):
-       - marca p._plan (parada planificada) y p._planReal (rank de captura en su ruta)
-       - resumen por transporte + global + fantasmas (paradas sin captura ni pendiente) */
     function computarCruce(transportes) {
       if (!planIdx) return null;
       var res = { porT: {}, global: { ok: 0, fuera: 0, sinPlan: 0, plan: planIdx.paradas.length }, fantasmas: [], fecha: planIdx.fecha };
       var usados = {}, seenRuta = {};
       (transportes || []).forEach(function(t) { res.porT[t.codigo] = { ok: 0, fuera: 0, sinPlan: 0 }; });
 
-      /* [A] matchear capturas (orden por t), consumiendo cada parada del plan una vez */
       (transportes || []).forEach(function(t) {
         var caps = (t.puntos || []).filter(function(p) { return p && !p.pendiente && p.t != null; });
         caps.sort(function(a, b) { return a.t - b.t; });
@@ -561,12 +578,11 @@
           if (!ent) { res.porT[t.codigo].sinPlan++; res.global.sinPlan++; return; }
           var key = ent.ruta + '#' + ent.orden;
           p._plan = ent;
-          if (seenRuta[key]) { /* re-captura: no duplica */ res.porT[t.codigo].sinPlan++; res.global.sinPlan++; return; }
+          if (seenRuta[key]) { res.porT[t.codigo].sinPlan++; res.global.sinPlan++; return; }
           seenRuta[key] = true; usados[key] = true;
         });
       });
 
-      /* [B] orden real por ruta del plan: rank temporal entre TODAS las capturas matcheadas */
       var porRutaReal = {};
       (transportes || []).forEach(function(t) {
         (t.puntos || []).forEach(function(p) {
@@ -584,7 +600,6 @@
         });
       });
 
-      /* [C] pendientes del payload que ya cubren paradas del plan (no crear fantasmas) */
       var pendCub = {};
       (transportes || []).forEach(function(t) {
         (t.puntos || []).forEach(function(p) {
@@ -594,7 +609,6 @@
         });
       });
 
-      /* [D] fantasmas: paradas planificadas sin captura ni pendiente */
       planIdx.paradas.forEach(function(ent) {
         var key = ent.ruta + '#' + ent.orden;
         if (!usados[key] && !pendCub[key]) res.fantasmas.push(ent);
@@ -616,7 +630,6 @@
         if (!keys.length) return;
         var hoy = hoyISO();
         var pasadas = keys.filter(function(f) { return f <= hoy; });
-        /* preferencia: plan más reciente ya iniciado; fallback: el más reciente */
         var fecha = pasadas.length ? pasadas[pasadas.length - 1] : keys[keys.length - 1];
         var plan = rutas[fecha].plan;
         planIdx = construirIndicePlan(plan);
@@ -625,7 +638,6 @@
         var b = document.getElementById('btnPlan');
         b.style.display = 'flex';
         b.classList.toggle('on', mostrarPlan);
-        /* re-pintar si ya hay datos (preserva popup/selección vía fix #1) */
         if (ultimoPayload && ultimoPayload.transportes) renderDatos(ultimoPayload.transportes);
       }).catch(function(e) { console.error('cargarPlan:', e); });
     }
@@ -638,15 +650,11 @@
       if (cruceActual) renderPlanOverlay(cruceActual);
     }
 
-    /* ★ Enlace al planificador: abre en pestaña nueva y le pasa la fecha
-       del plan activo (para re-planificar la misma fecha con un clic) */
     function abrirPlanificador() {
       try { if (planIdx && planIdx.fecha) localStorage.setItem('plan_fecha_sugerida', planIdx.fecha); } catch (e) {}
       window.open('planificador.html', '_blank');
     }
 
-    /* Overlay del plan: línea punteada de la secuencia planificada por ruta
-       + marcadores fantasma de paradas aún sin captura ni pendiente */
     function renderPlanOverlay(cruce) {
       if (groups['__plan']) { map.removeLayer(groups['__plan']); delete groups['__plan']; }
       if (!cruce || !planIdx || !mostrarPlan) return;
@@ -679,8 +687,7 @@
       g.addTo(map);
     }
 
-    /* ★ #1: capturar popup abierto antes de destruir las capas.
-       Se identifica por codigo de transporte + coordenada exacta del marcador. */
+    /* ★ #1: capturar popup abierto antes de destruir las capas */
     function capturarEstadoVisual() {
       var pop = null;
       Object.keys(groups).forEach(function(k) {
@@ -692,7 +699,6 @@
       });
       return pop;
     }
-    /* ★ #1: restaurar popup tras el re-render (si el punto sigue existiendo) */
     function restaurarEstadoVisual(pop) {
       if (!pop || !groups[pop.codigo]) return;
       groups[pop.codigo].eachLayer(function(l) {
@@ -707,18 +713,16 @@
     /* ★ Render de capas: reconstruible sin recrear el mapa (live updates) */
     function renderDatos(transportes) {
       try {
-        var popAbierto = capturarEstadoVisual(); /* ★ #1 */
+        var popAbierto = capturarEstadoVisual();
         T = transportes || [];
         Object.keys(groups).forEach(function(k) { map.removeLayer(groups[k]); });
         groups = {}; allBounds = [];
         COINC_DE = {}; /* ★ M2: registro de coincidentes del render */
-        /* ★ M2: capa comun para marcadores con entregas coincidentes
-           (siempre visible: sobrevive al ocultar transportes) */
+        /* ★ M2: capa comun para marcadores con entregas coincidentes */
         var gCoinc = L.layerGroup();
         groups['__coinc__'] = gCoinc;
         gCoinc.addTo(map);
 
-        /* ★ P-15: cruce plan vs ejecución ANTES de renderizar (marca p._plan / p._planReal) */
         var cruce = computarCruce(T);
         cruceActual = cruce;
 
@@ -737,7 +741,6 @@
         if (nPen > 0) statsHtml += '<span class="sb-stat s-pn">' + nPen + ' pendientes</span>';
         if (nProc > 0) statsHtml += '<span class="sb-stat s-pr">' + nProc + ' activo' + (nProc !== 1 ? 's' : '') + '</span>';
         if (nSinO > 0) statsHtml += '<span class="sb-stat s-so">' + nSinO + ' sin origen</span>';
-        /* ★ P-15: chips del plan */
         if (cruce) {
           var evaluable = cruce.global.ok + cruce.global.fuera;
           statsHtml += '<span class="sb-stat s-plan">Plan ' + fechaCorta(cruce.fecha) + '</span>';
@@ -758,7 +761,6 @@
 
           var enRuta = t.puntos.filter(function(p) { return !p.pendiente; });
           var pend = t.puntos.filter(function(p) { return p.pendiente; });
-          /* P-12: orden cronologico unificado (p.t primero, hkey fallback) */
           enRuta.sort(function(a, b) {
             var ka = (a.t != null) ? a.t : hkey(a.hora);
             var kb = (b.t != null) ? b.t : hkey(b.hora);
@@ -772,7 +774,6 @@
           gaps.forEach(function(x) { if (x != null && x > U.saltoMin * 60000) nGaps++; });
           nGapG += nGaps;
 
-          /* ★ #5: distancia recorrida (Haversine sobre la secuencia real) */
           var distKm = 0;
           for (var di = 1; di < enRuta.length; di++) {
             var A = enRuta[di - 1], B = enRuta[di];
@@ -783,10 +784,8 @@
           }
           distKm = Math.round(distKm / 100) / 10;
 
-          /* ★ #2: t del ultimo punto capturado de rutas en proceso (punto actual) */
           var tActual = tActualDe(t);
 
-          /* ★ P-15: resumen plan de este transporte */
           var rc = cruce ? cruce.porT[t.codigo] : null;
           var metaPlan = '';
           if (rc && (rc.ok + rc.fuera) > 0) {
@@ -795,13 +794,12 @@
           }
 
           /* ============================================================
-             ★ PATCH M2 — render de puntos con agrupamiento de coincidentes
+             ★ M2/M4 — render de puntos con agrupamiento de coincidentes
              ============================================================ */
           var seq = enRuta.concat(pend);
           var coords = [], nPenT = 0;
 
           seq.forEach(function(p, i) {
-            p._ix = i;
             var esPen = !!p.pendiente;
             if (esPen) nPenT++;
             var col = t.color;
@@ -816,7 +814,6 @@
               oc.bindPopup('<div class="pp"><div class="pp-num">Ubicacion original</div><div class="pp-nombre" style="color:' + sv + '">' + esc(p.nombre) + '</div>' + coordClickableHTML(p.latO, p.lngO) + '<div class="pp-row"><i class="fa-solid fa-arrows-left-right"></i>' + p.dist + ' m del punto capturado</div></div>');
             }
 
-            /* clases visuales del punto que crea el marcador */
             var esActual = (!esPen && !p.sinOrigen && tActual != null && p.t === tActual);
             var esFuera = (p._plan && p._planReal != null && p._planReal !== p._plan.orden);
             var clsExtra = (p.sinOrigen ? ' mk-sin-origen' : '')
@@ -828,10 +825,6 @@
               iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16]
             });
 
-            /* ★ M2: registrar en el mapa de coincidentes. Solo el primero
-               de cada ubicacion crea el marcador; si luego llega otra
-               entrega (de este u otro transporte), el marcador gana la
-               insignia xN y su popup se convierte en lista seleccionable. */
             var crear = registrarCoincidente(t, p, num, gaps, g);
             if (crear) {
               var k = claveCoinc(p.lat, p.lng);
@@ -839,8 +832,8 @@
               var m = L.marker([p.lat, p.lng], { icon: icon });
               reg.marker = m;
               m.__grupo = g;
-              /* popup inicial: detalles directos (si luego hay coincidencia,
-                 registrarCoincidente lo reemplaza por la lista) */
+              /* popup inicial: detalles directos (si hay coincidencia,
+                 registrarCoincidente lo convierte en lista seleccionable) */
               m.bindPopup(construirDetallesG(t, p, num, gaps), { maxWidth: 260 });
               if (p.sector) {
                 m.bindTooltip(esc(p.sector), { permanent: true, direction: 'right', offset: [13, 0], className: 'lbl-sector', opacity: 1 });
@@ -888,12 +881,10 @@
         document.getElementById('sbStats').innerHTML = statsHtml;
         document.getElementById('sbList').innerHTML = listHtml;
 
-        /* ★ #1: restaurar seleccion del sidebar */
         document.querySelectorAll('.sb-item').forEach(function(el) {
           el.classList.toggle('active', el.getAttribute('data-cod') === codigoActivo);
         });
 
-        /* ★ #4: limpiar ocultos de codigos que ya no existen en el payload */
         Object.keys(ocultos).forEach(function(k) { if (k !== '__coinc__' && !groups[k]) delete ocultos[k]; });
         try { localStorage.setItem('mapa_ocultos', JSON.stringify(ocultos)); } catch (e) {}
 
@@ -901,9 +892,11 @@
           map.fitBounds(L.latLngBounds(allBounds), { padding: [40, 40], maxZoom: 16 });
           yaFit = true;
         }
-        restaurarEstadoVisual(popAbierto); /* ★ #1: reabrir el popup que estaba abierto */
+        /* ★ M4: indices de coincidentes vigentes (y popups de lista
+           refrescados con data-reg correcto) ANTES de restaurar */
+        reconstruirCoincList();
+        restaurarEstadoVisual(popAbierto);
 
-        /* ★ P-15: overlay del plan (fantasmas + secuencia punteada) */
         renderPlanOverlay(cruce);
       } catch (e) {
         console.error(e);
@@ -913,7 +906,7 @@
 
     function aplicarPayload(p) {
       if (!p) return;
-      ultimoPayload = p; /* ★ #3: para el tick interno */
+      ultimoPayload = p;
       if (p.umbrales) U = p.umbrales;
       document.getElementById('sbTitulo').textContent = p.subtitulo || 'Mapa';
       document.title = p.titulo || 'Mapa de monitoreo';
@@ -926,7 +919,6 @@
       document.getElementById('sidebar').style.display = 'none';
     }
 
-    /* Live updates desde el panel */
     window.addEventListener('message', function(e) {
       var d = e.data;
       if (d && d.__mapaDatos) {
@@ -954,17 +946,13 @@
       } else {
         sinDatos();
       }
-      /* ★ P-15: cargar plan del planificador (async; si llega tarde, re-renderiza solo) */
       cargarPlan();
-      /* re-chequeo del banner de frescura cada minuto */
       setInterval(function() {
         try {
           var raw2 = localStorage.getItem('pm_mapa_datos');
           if (raw2) { var p2 = JSON.parse(raw2); if (p2 && p2.ts) actualizarFrescura(p2.ts); }
         } catch (e) {}
       }, 60000);
-      /* ★ #3: tick interno — "inactivo X min" se refresca localmente cada 60s
-         sin esperar el push del panel. El fix #1 re-abre el popup si estaba abierto. */
       setInterval(function() {
         if (!ultimoPayload || !ultimoPayload.transportes) return;
         var cambio = false;
@@ -981,7 +969,6 @@
       }, 60000);
     });
 
-    /* ★ Leyenda de sector: toggle persistente */
     function toggleEtiquetas() {
       etiquetasOn = !etiquetasOn;
       document.body.classList.toggle('sin-etiquetas', !etiquetasOn);
@@ -995,10 +982,9 @@
     function zoomT(c) {
       var g = groups[c];
       if (!g) return;
-      codigoActivo = c; /* ★ #1: recordar seleccion entre re-renders */
+      codigoActivo = c;
       var b = [];
       g.eachLayer(function(l) { if (l.getLatLng) b.push(l.getLatLng()); });
-      /* ★ M2: incluir marcadores agrupados con puntos de este transporte */
       Object.keys(COINC_DE).forEach(function(k) {
         var reg = COINC_DE[k];
         if (reg.marker && reg.items.some(function(it) { return it.t.codigo === c; })) b.push(reg.marker.getLatLng());
@@ -1036,7 +1022,6 @@
           if (el) { var d = el.querySelector('.mk-dot'); if (d) d.classList.add('hl'); }
         }
       });
-      /* ★ M2: resaltar tambien marcadores agrupados de este transporte */
       Object.keys(COINC_DE).forEach(function(k) {
         var reg = COINC_DE[k];
         if (!reg.marker || !reg.items.some(function(it) { return it.t.codigo === c; })) return;
@@ -1054,7 +1039,6 @@
           if (el) { var d = el.querySelector('.mk-dot'); if (d) d.classList.remove('hl'); }
         }
       });
-      /* ★ M2: quitar resaltado de marcadores agrupados */
       Object.keys(COINC_DE).forEach(function(k) {
         var reg = COINC_DE[k];
         if (!reg.marker || !reg.items.some(function(it) { return it.t.codigo === c; })) return;
@@ -1090,9 +1074,7 @@
         btn.classList.remove('off');
         btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
       }
-      /* ★ #4: persistir entre sesiones */
       try { localStorage.setItem('mapa_ocultos', JSON.stringify(ocultos)); } catch (e) {}
-      /* ★ M2: los puntos agrupados siguen visibles si otro transporte los comparte */
       actualizarVisibilidadCoinc();
     }
 
@@ -1103,7 +1085,6 @@
         if (!map.hasLayer(groups[k])) return;
         groups[k].eachLayer(function(l) { if (l.getLatLng) b.push(l.getLatLng()); });
       });
-      /* ★ M2: marcadores agrupados con al menos un transporte visible */
       Object.keys(COINC_DE).forEach(function(k) {
         var reg = COINC_DE[k];
         if (!reg.marker) return;
