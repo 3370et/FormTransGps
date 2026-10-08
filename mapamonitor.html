@@ -180,11 +180,15 @@
             de la lista NUNCA cierra el popup y "volver a la lista"
             es instantaneo (setContent directo, sin re-wiring).
        ★ M5 — popup de puntos xN sobrevive los re-renders del push:
-            se captura y restaura el HTML visible (detalles tal cual,
-            lista fresca), busqueda por clave de coincidencia (~11 m)
-            en cualquier grupo (el marcador representante puede
-            cambiar entre renders), autoPan rapido, sin parpadeos y
-            visibilidad correcta de agrupados de transportes ocultos.
+            captura/restauracion del HTML visible, busqueda por
+            clave de coincidencia, autoPan rapido, sin parpadeos.
+       ★ M6 — la insignia xN NACE con el marcador: los grupos de
+            coincidentes se pre-calculan ANTES de renderizar, asi
+            el divIcon del representante ya incluye el xN en su
+            HTML (antes se pintaba via getElement(), que devuelve
+            null en el primer render porque Leaflet monta los
+            elementos de forma diferida; la insignia solo aparecia
+            tras interactuar o en el siguiente push).
        ============================================================ */
 
     /* ================= ★ P-15: FIREBASE ================= */
@@ -265,7 +269,7 @@
     function fechaCorta(iso){ if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || ''; return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
 
     /* ============================================================
-       ★ M2/M3/M4/M5 — utilidades de coincidentes + portapapeles
+       ★ M2/M3/M4/M5/M6 — utilidades de coincidentes + portapapeles
        ============================================================ */
     var UMB_COINC_M = 10; /* metros: umbral de "misma ubicacion" */
     var COINC_DE = {};    /* clave "lat|lng" redondeada -> grupo del render actual */
@@ -369,7 +373,10 @@
     }
     /* ★ M4 + M5: reconstruye la lista plana con indices. NO toca el
        contenido de popups abiertos (evita parpadeo/pérdida de vista):
-       la restauración final se encarga de dejarlos consistentes. */
+       la restauración final se encarga de dejarlos consistentes.
+       Aquí también queda la lista final correcta de los multipunto
+       cerrados (los nacidos en M6 con lista parcial de 1 item se
+       completan aquí, siempre antes de que el usuario los abra). */
     function reconstruirCoincList() {
       COINC_LIST = [];
       Object.keys(COINC_DE).forEach(function(k) {
@@ -464,8 +471,11 @@
       h += '</div></div>';
       return h;
     }
-    /* ★ M4: registro de coincidentes — el wiring del popup es delegacion
-       global, no se necesita popupopen por grupo */
+    /* ★ M6: registro de coincidentes. La insignia xN ya viene incluida
+       en el HTML del divIcon del representante (pre-grupo calculado
+       antes de renderizar), y el marcador multipunto ya nace en la
+       capa comun con su popup-lista; aqui solo se registran los items
+       y se mantiene la coherencia de capas como red de seguridad. */
     function registrarCoincidente(tq, p, num, gapsArr, gOrigen) {
       var k = claveCoinc(p.lat, p.lng);
       if (!COINC_DE[k]) COINC_DE[k] = { lat: p.lat, lng: p.lng, items: [], multipunto: false };
@@ -473,25 +483,15 @@
       reg.items.push({ t: tq, p: p, num: num, gapsArr: gapsArr });
       if (reg.items.length === 1) return true;
       if (reg.marker) {
-        if (!reg.multipunto) {
-          reg.multipunto = true;
-          /* mover el marcador a la capa comun (sobrevive a ocultar transportes) */
-          if (reg.marker.__grupo && reg.marker.__grupo.hasLayer(reg.marker)) {
-            reg.marker.__grupo.removeLayer(reg.marker);
-          }
-          var gc = groups['__coinc__'];
-          if (gc) gc.addLayer(reg.marker);
+        reg.multipunto = true;
+        /* si por cualquier motivo nacio en el grupo de su transporte,
+           moverlo a la capa comun */
+        if (reg.marker.__grupo && reg.marker.__grupo.hasLayer(reg.marker)) {
+          reg.marker.__grupo.removeLayer(reg.marker);
         }
-        var el = reg.marker.getElement();
-        if (el) {
-          var dot = el.querySelector('.mk-dot');
-          if (dot) {
-            var bd = dot.querySelector('.mk-n');
-            if (!bd) { bd = document.createElement('span'); bd.className = 'mk-n'; dot.appendChild(bd); }
-            bd.textContent = '\u00d7' + reg.items.length;
-          }
-        }
-        /* ★ M5: no pisar el contenido si el popup esta abierto */
+        var gc = groups['__coinc__'];
+        if (gc && !gc.hasLayer(reg.marker)) gc.addLayer(reg.marker);
+        /* refrescar popup solo si no esta abierto (M5: sin parpadeos) */
         if (!(reg.marker.isPopupOpen && reg.marker.isPopupOpen())) {
           reg.marker.setPopupContent(htmlListaCoincidencias(reg));
         }
@@ -702,8 +702,6 @@
     /* ============================================================
        ★ #1 + M5 — preservación del popup abierto entre renders
        ============================================================ */
-    /* ★ M5: captura tambien el HTML exacto que estaba viendo el
-       usuario (lista o detalles) para restaurarlo tal cual */
     function capturarEstadoVisual() {
       var pop = null;
       Object.keys(groups).forEach(function(k) {
@@ -724,8 +722,7 @@
        (b) misma clave de coincidencia (~11 m) en CUALQUIER grupo —
            cubre los multipunto cuyo marcador representante cambió de
            posición/transporte entre renders. Restaura el HTML capturado;
-           si era la lista de un multipunto, se regenera fresca (los
-           índices del render anterior pueden estar desfasados). */
+           si era la lista de un multipunto, se regenera fresca. */
     function restaurarEstadoVisual(pop) {
       if (!pop) return;
       var destino = null;
@@ -755,8 +752,6 @@
       var pc = destino.getPopup();
       if (!pc) { destino.openPopup(); return; }
 
-      /* restaurar la vista que tenía: detalles tal cual; lista fresca
-         para multipunto (índices vigentes) */
       if (pop.html && typeof pop.html === 'string' && pop.html.indexOf('pp-lista') === -1) {
         pc.setContent(pop.html);          /* detalles: tal cual estaban */
       } else {
@@ -811,6 +806,36 @@
           statsHtml += '<span class="sb-stat s-plan">Plan ' + fechaCorta(planIdx.fecha) + '</span>';
         }
 
+        /* ============================================================
+           ★ PATCH M6 — PRE-GRUPOS DE COINCIDENTES
+           Se registran TODOS los puntos (con su transporte y numero
+           cronologico) ANTES de crear ningun marcador. Cada grupo
+           sabe desde el inicio cuantas entregas tiene, asi el divIcon
+           del representante NACE con su insignia xN — no hay que
+           tocar el DOM despues (getElement() devuelve null en el
+           primer render porque Leaflet monta los elementos de forma
+           diferida; por eso la insignia antes solo aparecia tras
+           interactuar o con el siguiente push).
+           ============================================================ */
+        var PRE_COINC = {};
+        T.forEach(function(t) {
+          var enRuta0 = t.puntos.filter(function(p) { return !p.pendiente; });
+          enRuta0.sort(function(a, b) {
+            var ka = (a.t != null) ? a.t : hkey(a.hora);
+            var kb = (b.t != null) ? b.t : hkey(b.hora);
+            return ka - kb;
+          });
+          var pend0 = t.puntos.filter(function(p) { return p.pendiente; });
+          var seq0 = enRuta0.concat(pend0);
+          var c0 = 0;
+          seq0.forEach(function(p) {
+            var num0 = p.pendiente ? '?' : (++c0);
+            var k0 = claveCoinc(p.lat, p.lng);
+            if (!PRE_COINC[k0]) PRE_COINC[k0] = { items: [] };
+            PRE_COINC[k0].items.push({ t: t, p: p, num: num0 });
+          });
+        });
+
         var listHtml = '';
         T.forEach(function(t, idx) {
           var g = L.layerGroup();
@@ -852,7 +877,7 @@
           }
 
           /* ============================================================
-             ★ M2/M4/M5 — render de puntos con agrupamiento de coincidentes
+             ★ M2/M4/M5/M6 — render de puntos con agrupamiento
              ============================================================ */
           var seq = enRuta.concat(pend);
           var coords = [], nPenT = 0;
@@ -877,9 +902,18 @@
             var clsExtra = (p.sinOrigen ? ' mk-sin-origen' : '')
                          + (esActual ? ' mk-actual' : '')
                          + (esFuera ? ' mk-fuera' : '');
+
+            /* ★ M6: pre-grupo de este punto — el representante nace
+               con la insignia xN en su propio HTML */
+            var pre = PRE_COINC[claveCoinc(p.lat, p.lng)];
+            var esRepr = !pre || pre.items[0].p === p;
+            var badgeN = (pre && pre.items.length > 1 && esRepr)
+              ? '<span class="mk-n" title="' + pre.items.length + ' entregas en este punto">\u00d7' + pre.items.length + '</span>'
+              : '';
+
             var icon = L.divIcon({
               className: 'mk' + clsExtra,
-              html: '<div class="mk-dot" style="background:' + col + ';' + (esPen ? 'border-style:dashed;' : '') + '">' + num + '</div>',
+              html: '<div class="mk-dot" style="background:' + col + ';' + (esPen ? 'border-style:dashed;' : '') + '">' + num + badgeN + '</div>',
               iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16]
             });
 
@@ -889,13 +923,20 @@
               var reg = COINC_DE[k];
               var m = L.marker([p.lat, p.lng], { icon: icon });
               reg.marker = m;
+              reg.multipunto = !!(pre && pre.items.length > 1); /* nace multipunto si aplica */
               m.__grupo = g;
-              /* ★ M5: autoPan rapido (casi imperceptible) */
-              m.bindPopup(construirDetallesG(t, p, num, gaps), { maxWidth: 260, autoPan: { duration: 0.15 } });
+              if (reg.multipunto) {
+                /* ★ M6: nace directo en la capa comun con popup-lista */
+                m.bindPopup(htmlListaCoincidencias(reg), { maxWidth: 280, autoPan: { duration: 0.15 } });
+                var gc0 = groups['__coinc__'];
+                if (gc0) gc0.addLayer(m); else m.addTo(g);
+              } else {
+                m.bindPopup(construirDetallesG(t, p, num, gaps), { maxWidth: 260, autoPan: { duration: 0.15 } });
+                m.addTo(g);
+              }
               if (p.sector) {
                 m.bindTooltip(esc(p.sector), { permanent: true, direction: 'right', offset: [13, 0], className: 'lbl-sector', opacity: 1 });
               }
-              m.addTo(g);
             }
             if (!esPen) coords.push([p.lat, p.lng]);
             allBounds.push([p.lat, p.lng]);
@@ -949,8 +990,9 @@
           map.fitBounds(L.latLngBounds(allBounds), { padding: [40, 40], maxZoom: 16 });
           yaFit = true;
         }
-        /* ★ M4+M5: indices vigentes, visibilidad de agrupados y
-           restaurar el popup abierto (tal cual estaba) */
+        /* ★ M4+M5+M6: indices vigentes (y listas finales de los
+           multipunto, que nacieron con 1 item registrado), visibilidad
+           de agrupados y restaurar el popup abierto tal cual estaba */
         reconstruirCoincList();
         actualizarVisibilidadCoinc();
         restaurarEstadoVisual(popAbierto);
