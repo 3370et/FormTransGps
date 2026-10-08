@@ -102,7 +102,25 @@
     .pp-row i{width:13px;text-align:center;font-size:9px;color:#565e74;flex-shrink:0}
     .pp-row a{color:#60a5fa;text-decoration:none;font-weight:600}
     .pp-row a:hover{text-decoration:underline}
-    .pp-coord{font-family:'Space Grotesk',monospace;font-size:10px;color:#565e74;margin-top:5px;padding-top:5px;border-top:1px solid #22273a}
+    /* ★ M2-3: coordenadas clicables (copiar al portapapeles) */
+    .pp-coord{font-family:'Space Grotesk',monospace;font-size:10px;color:#565e74;margin-top:5px;padding-top:5px;border-top:1px solid #22273a;cursor:pointer;transition:color .15s;display:flex;align-items:center;gap:6px;width:fit-content}
+    .pp-coord:hover{color:#60a5fa}
+    .pp-coord i{font-size:9px}
+    .pp-coord.copiado{color:#34d399 !important;animation:copiadoFade 1.4s ease}
+    @keyframes copiadoFade{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
+    /* ===== ★ PATCH M2 — entregas coincidentes (mismo codigo u otro transporte) ===== */
+    .mk-dot{position:relative}
+    .mk-n{position:absolute;top:-9px;right:-11px;background:#ffd166;color:#0f1117;font-family:'Space Grotesk',sans-serif;font-size:9px;font-weight:800;border-radius:99px;padding:1px 5px;border:1.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.55);line-height:1.5;pointer-events:none}
+    .pp-lista{display:flex;flex-direction:column;gap:5px;margin:4px 0 2px;padding:0;list-style:none}
+    .pp-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:#191d28;border:1px solid #22273a;border-radius:9px;padding:7px 9px;color:#e4e8f1;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+    .pp-item:hover{border-color:#e8913a;background:rgba(232,145,58,.08)}
+    .pp-item .pi-num{flex-shrink:0;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;color:#fff}
+    .pp-item .pi-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+    .pp-item .pi-nombre{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pp-item .pi-sub{font-size:10px;font-weight:500;color:#565e74;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+    .pi-codc{font-family:'Space Grotesk',monospace;font-size:9px;background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:0 4px}
+    .pp-back{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;margin-top:8px;padding:7px 0 2px;border:none;background:none;color:#8891a8;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:color .15s}
+    .pp-back:hover{color:#e8913a}
     .sin-mapa{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#08090d;z-index:5000;text-align:center}
     .sin-mapa i{font-size:42px;color:#22273a;display:block;margin-bottom:14px}
     .sin-mapa p{color:#8891a8;font-size:14px;font-weight:600}
@@ -165,6 +183,13 @@
          - Diff ETA plan vs hora real de llegada
          - Paradas sin captura: marcadores fantasma (toggle "Plan")
        ★ Autenticación anónima (reglas: auth != null)
+       ★ PATCH M2 — ENTREGAS COINCIDENTES (misma ubicacion):
+         Dos o mas entregas —del mismo codigo o de transportes
+         distintos— en el mismo punto (~10 m) se renderizan como UN
+         solo marcador con insignia xN. Su popup lista las entregas
+         (con codigo de cliente y color/numero de cada transporte) y
+         cada una abre sus detalles completos con boton de vuelta.
+         Coordenadas copiables al portapapeles con un clic.
        ============================================================ */
 
     /* ================= ★ P-15: FIREBASE (misma config que el planificador) ================= */
@@ -246,6 +271,184 @@
       return 2 * 6371000 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
     }
     function fechaCorta(iso){ if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || ''; return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
+
+    /* ============================================================
+       ★ PATCH M2 — utilidades de entregas coincidentes + portapapeles
+       ============================================================ */
+    var UMB_COINC_M = 10; /* metros: umbral de "misma ubicacion" */
+    var COINC_DE = {};    /* clave "lat|lng" redondeada -> grupo del render actual */
+
+    function copiarAlPortapapeles(txt, el) {
+      function ok() {
+        if (el) { el.classList.add('copiado'); setTimeout(function() { el.classList.remove('copiado'); }, 1400); }
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(ok).catch(function() { fbCopy(txt, ok); });
+      } else { fbCopy(txt, ok); }
+    }
+    function fbCopy(txt, cb) {
+      var ta = document.createElement('textarea');
+      ta.value = txt; ta.style.cssText = 'position:fixed;left:-9999px;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); cb(); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+    function coordClickableHTML(lat, lng) {
+      var txt = Number(lat).toFixed(6) + ', ' + Number(lng).toFixed(6);
+      return '<span class="pp-coord" data-coord="' + esc(txt) + '" title="Clic para copiar coordenadas"><i class="fa-regular fa-copy"></i>' + txt + '</span>';
+    }
+    /* delegacion global: clic en cualquier .pp-coord copia al portapapeles */
+    document.addEventListener('click', function(e) {
+      var c = e.target && e.target.closest ? e.target.closest('.pp-coord') : null;
+      if (!c) return;
+      e.stopPropagation();
+      copiarAlPortapapeles(c.getAttribute('data-coord') || c.textContent.trim(), c);
+    }, true);
+    /* ★ M2: redondeo de coordenadas para agrupar (~11 m -> 4 decimales) */
+    function claveCoinc(lat, lng) {
+      return lat.toFixed(4) + '|' + lng.toFixed(4);
+    }
+    /* ★ M2: t del ultimo punto capturado de un transporte */
+    function tActualDe(tq) {
+      var mx = 0;
+      (tq.puntos || []).forEach(function(q) { if (!q.pendiente && q.t != null && q.t > mx) mx = q.t; });
+      return mx || null;
+    }
+    /* ★ P-15 (M2): filas del plan para UN punto (depende solo del punto) */
+    function filasPlanQ(q) {
+      var esPenQ = !!q.pendiente;
+      var fx = '';
+      if (q._plan) {
+        var en = q._plan;
+        fx += '<div class="pp-row"><i class="fa-solid fa-clipboard-list" style="color:#5eead4"></i><span style="color:#5eead4;font-weight:700">Plan ' + esc(en.ruta) + ' #' + en.orden + '</span>' + (en.transporte ? ' &middot; ' + esc(en.transporte) : '') + ' &middot; ETA ' + esc(en.etaTxt) + '</div>';
+        if (en.ventanaTxt) fx += '<div class="pp-row"><i class="fa-solid fa-hourglass-half"></i>Ventana plan ' + esc(en.ventanaTxt) + (en.ventanaFuente ? ' <span style="color:#565e74">(' + esc(en.ventanaFuente) + ')</span>' : '') + '</div>';
+        if (!esPenQ && q._planReal != null) {
+          if (q._planReal === en.orden) {
+            fx += '<div class="pp-row"><i class="fa-solid fa-circle-check" style="color:#34d399"></i><span style="color:#34d399;font-weight:700">En secuencia seg\u00fan plan</span></div>';
+          } else {
+            fx += '<div class="pp-row"><i class="fa-solid fa-shuffle" style="color:#f87171"></i><span style="color:#f87171;font-weight:700">Fuera de secuencia: plan #' + en.orden + ' &rarr; real #' + q._planReal + '</span></div>';
+          }
+          var etaM = hhmm2min(en.etaTxt), realM = hhmm2min(q.hora);
+          if (etaM != null && realM != null) {
+            var df = realM - etaM;
+            if (Math.abs(df) >= 5) {
+              var colDf = df > 0 ? '#fbbf24' : '#34d399';
+              fx += '<div class="pp-row"><i class="fa-regular fa-clock" style="color:' + colDf + '"></i><span style="color:' + colDf + ';font-weight:700">Llegada ' + Math.abs(df) + ' min ' + (df > 0 ? 'despu\u00e9s' : 'antes') + ' del plan</span></div>';
+            }
+          }
+        }
+      }
+      return fx;
+    }
+    /* ★ M2: detalles completos de UNA entrega (transporte-agnostica) */
+    function construirDetallesG(tq, q, numQ, gapsArr) {
+      var esPenQ = !!q.pendiente;
+      var col = tq.color;
+      var ph = '<div class="pp">';
+      ph += '<div class="pp-num">' + (esPenQ ? 'Pendiente de captura' : 'Punto ' + numQ) + ' &middot; ' + esc(tq.codigo) + '</div>';
+      ph += '<div class="pp-nombre" style="color:' + col + '">' + esc(q.nombre) + '</div>';
+      if (q.codc) ph += '<div class="pp-row"><i class="fa-solid fa-barcode"></i><span class="pi-codc">' + esc(q.codc) + '</span></div>';
+      if (q.sector) ph += '<div class="pp-row"><i class="fa-solid fa-tag"></i>' + esc(q.sector) + '</div>';
+      if (esPenQ) {
+        ph += filasPlanQ(q);
+        ph += '<div class="pp-row"><i class="fa-solid fa-hourglass-half"></i>GPS aun no capturado</div>';
+        ph += '<div class="pp-row"><a href="https://www.google.com/maps?q=' + q.lat + ',' + q.lng + '" target="_blank" rel="noopener"><i class="fa-solid fa-diamond-turn-right"></i> Ir a capturar</a></div>';
+      } else {
+        var esActualQ = (!q.sinOrigen && tq.estado === 'en_proceso' && tActualDe(tq) === q.t);
+        if (esActualQ) ph += '<div class="pp-row"><i class="fa-solid fa-location-crosshairs" style="color:#60a5fa"></i><span style="color:#60a5fa;font-weight:700">Ultima posicion conocida</span></div>';
+        ph += '<div class="pp-row"><i class="fa-regular fa-clock"></i>' + esc(cuando(q.hora)) + '</div>';
+        ph += filasPlanQ(q);
+        if (q._gIdx > 0 && gapsArr && gapsArr[q._gIdx] != null && gapsArr[q._gIdx] > U.saltoMin * 60000) {
+          ph += '<div class="pp-row"><i class="fa-solid fa-triangle-exclamation" style="color:#f87171"></i><span style="color:#f87171;font-weight:700">Salto de ' + fmtDur(Math.round(gapsArr[q._gIdx] / 60000)) + ' desde el punto anterior</span></div>';
+        }
+        if (q.precision) ph += '<div class="pp-row"><i class="fa-solid fa-crosshairs"></i>Precision: ' + esc(q.precision) + '</div>';
+        if (q.sinOrigen) ph += '<div class="pp-row"><i class="fa-solid fa-circle-notch" style="color:#ffd166"></i><span style="color:#ffd166;font-weight:700">Primera captura: sin coordenada de origen</span></div>';
+        if (q.dist !== '' && q.dist != null && isFinite(q.dist)) {
+          var sv = q.dist < U.desvOk ? '#34d399' : (q.dist < U.desvAl ? '#fbbf24' : '#f87171');
+          var svT = q.dist < U.desvOk ? 'Alineado' : (q.dist < U.desvAl ? 'Desviacion moderada' : 'DESVIACION ALTA');
+          ph += '<div class="pp-row"><i class="fa-solid fa-arrows-left-right" style="color:' + sv + '"></i><span style="color:' + sv + ';font-weight:700">' + svT + ': ' + q.dist + ' m</span>&nbsp;de ubic. original</div>';
+        }
+      }
+      ph += coordClickableHTML(q.lat, q.lng);
+      ph += '</div>';
+      return ph;
+    }
+    /* ★ M2: popup lista de todas las entregas del punto (varios transportes) */
+    function htmlListaCoincidencias(reg) {
+      var nT = {};
+      reg.items.forEach(function(it) { nT[it.t.codigo] = true; });
+      var tit = (Object.keys(nT).length > 1)
+        ? (reg.items.length + ' entregas &middot; ' + Object.keys(nT).length + ' transportes')
+        : (reg.items.length + ' entregas en esta ubicaci\u00f3n');
+      var h = '<div class="pp"><div class="pp-num">' + tit + '</div><div class="pp-lista">';
+      reg.items.forEach(function(it, ix) {
+        var q = it.p, tq = it.t;
+        h += '<button class="pp-item" data-ix="' + ix + '">'
+          + '<span class="pi-num" style="background:' + tq.color + '">' + (q.pendiente ? '?' : it.num) + '</span>'
+          + '<span class="pi-txt"><span class="pi-nombre">' + esc(q.nombre) + '</span>'
+          + '<span class="pi-sub">' + (q.pendiente ? 'Pendiente' : esc(cuando(q.hora)))
+          + (q.codc ? ' <span class="pi-codc">' + esc(q.codc) + '</span>' : '')
+          + ' &middot; <span style="color:' + tq.color + ';font-weight:700">' + esc(tq.codigo) + '</span></span></span></button>';
+      });
+      h += '</div></div>';
+      return h;
+    }
+    /* ★ M2: registro de coincidentes — devuelve true SOLO al primer punto
+       de cada ubicacion (ese crea el marcador); los siguientes actualizan
+       insignia, popup y mueven el marcador a la capa comun __coinc__ */
+    function registrarCoincidente(tq, p, num, gapsArr, gOrigen) {
+      var k = claveCoinc(p.lat, p.lng);
+      if (!COINC_DE[k]) COINC_DE[k] = { lat: p.lat, lng: p.lng, items: [], multipunto: false };
+      var reg = COINC_DE[k];
+      reg.items.push({ t: tq, p: p, num: num, gapsArr: gapsArr });
+      if (reg.items.length === 1) return true;
+      if (reg.marker) {
+        if (!reg.multipunto) {
+          reg.multipunto = true;
+          /* mover el marcador a la capa comun (sobrevive a ocultar transportes) */
+          if (reg.marker.__grupo && reg.marker.__grupo.hasLayer(reg.marker)) {
+            reg.marker.__grupo.removeLayer(reg.marker);
+          }
+          var gc = groups['__coinc__'];
+          if (gc) gc.addLayer(reg.marker);
+          /* cablear el selector de lista -> detalles */
+          if (!reg.wired) {
+            reg.wired = true;
+            reg.marker.on('popupopen', function(ev) {
+              var pop = ev.popup;
+              function wire() {
+                var el = pop.getElement();
+                if (!el) return;
+                el.querySelectorAll('.pp-item').forEach(function(btn) {
+                  btn.onclick = function() {
+                    var it = reg.items[+btn.getAttribute('data-ix')];
+                    if (!it) return;
+                    var numQ = it.p.pendiente ? '?' : it.num;
+                    pop.setContent(construirDetallesG(it.t, it.p, numQ, it.gapsArr)
+                      + '<button class="pp-back"><i class="fa-solid fa-arrow-left"></i> Volver a la lista</button>');
+                    var bel = pop.getElement() ? pop.getElement().querySelector('.pp-back') : null;
+                    if (bel) bel.onclick = function() { pop.setContent(htmlListaCoincidencias(reg)); wire(); };
+                  };
+                });
+              }
+              wire();
+            });
+          }
+        }
+        /* insignia xN */
+        var el = reg.marker.getElement();
+        if (el) {
+          var dot = el.querySelector('.mk-dot');
+          if (dot) {
+            var bd = dot.querySelector('.mk-n');
+            if (!bd) { bd = document.createElement('span'); bd.className = 'mk-n'; dot.appendChild(bd); }
+            bd.textContent = '\u00d7' + reg.items.length;
+          }
+        }
+        reg.marker.setPopupContent(htmlListaCoincidencias(reg));
+      }
+      return false;
+    }
 
     /* Banner de frescura: avisa si los datos tienen mas de 10 min */
     function actualizarFrescura(ts) {
@@ -449,12 +652,13 @@
         var ph = '<div class="pp">';
         ph += '<div class="pp-num">Parada planificada &middot; ' + esc(ent.ruta) + ' &middot; ' + esc(ent.transporte) + '</div>';
         ph += '<div class="pp-nombre" style="color:#cbd5e1">' + esc(ent.clnt) + '</div>';
+        if (ent.codc) ph += '<div class="pp-row"><i class="fa-solid fa-barcode"></i><span class="pi-codc">' + esc(ent.codc) + '</span></div>';
         if (ent.sector) ph += '<div class="pp-row"><i class="fa-solid fa-tag"></i>' + esc(ent.sector) + '</div>';
         ph += '<div class="pp-row"><i class="fa-solid fa-weight-hanging"></i>' + Math.round(ent.peso).toLocaleString('es-EC') + ' kg</div>';
         ph += '<div class="pp-row"><i class="fa-regular fa-clock"></i>ETA plan ' + esc(ent.etaTxt) + (ent.ventanaTxt ? ' &middot; ventana ' + esc(ent.ventanaTxt) : '') + '</div>';
         if (ent.viajes) ph += '<div class="pp-row"><i class="fa-solid fa-repeat" style="color:#ffd166"></i><span style="color:#ffd166;font-weight:700">' + ent.viajes + ' viajes planificados</span></div>';
         ph += '<div class="pp-row"><i class="fa-solid fa-circle-notch" style="color:#8891a8"></i>Sin captura GPS a\u00fan</div>';
-        ph += '<div class="pp-coord">' + ent.lat + ', ' + ent.lon + '</div></div>';
+        ph += coordClickableHTML(ent.lat, ent.lon) + '</div>';
         m.bindPopup(ph, { maxWidth: 260 });
         if (ent.sector) m.bindTooltip(esc(ent.sector), { permanent: true, direction: 'right', offset: [12, 0], className: 'lbl-sector', opacity: 1 });
         m.addTo(g);
@@ -495,6 +699,12 @@
         T = transportes || [];
         Object.keys(groups).forEach(function(k) { map.removeLayer(groups[k]); });
         groups = {}; allBounds = [];
+        COINC_DE = {}; /* ★ M2: registro de coincidentes del render */
+        /* ★ M2: capa comun para marcadores con entregas coincidentes
+           (siempre visible: sobrevive al ocultar transportes) */
+        var gCoinc = L.layerGroup();
+        groups['__coinc__'] = gCoinc;
+        gCoinc.addTo(map);
 
         /* ★ P-15: cruce plan vs ejecución ANTES de renderizar (marca p._plan / p._planReal) */
         var cruce = computarCruce(T);
@@ -562,8 +772,7 @@
           distKm = Math.round(distKm / 100) / 10;
 
           /* ★ #2: t del ultimo punto capturado de rutas en proceso (punto actual) */
-          var tActual = (t.estado === 'en_proceso' && enRuta.length)
-            ? enRuta[enRuta.length - 1].t : null;
+          var tActual = tActualDe(t);
 
           /* ★ P-15: resumen plan de este transporte */
           var rc = cruce ? cruce.porT[t.codigo] : null;
@@ -573,16 +782,30 @@
             if (rc.fuera > 0) metaPlan += ' <span style="color:#f87171;font-weight:700">' + rc.fuera + ' fuera</span>';
           }
 
+          /* ============================================================
+             ★ PATCH M2 — render de puntos con agrupamiento de coincidentes
+             ============================================================ */
           var seq = enRuta.concat(pend);
           var coords = [], nPenT = 0;
+
           seq.forEach(function(p, i) {
+            p._ix = i;
             var esPen = !!p.pendiente;
             if (esPen) nPenT++;
             var col = t.color;
             var num = esPen ? '?' : (coords.length + 1);
-            /* ★ clases: sinOrigen tiene prioridad sobre el pulso del punto actual */
+            p._gIdx = esPen ? null : coords.length;
+
+            /* desviacion por punto (linea + circulo original), aunque este agrupado */
+            if (!esPen && p.dist !== '' && p.dist != null && isFinite(p.dist) && p.latO != null) {
+              var sv = p.dist < U.desvOk ? '#34d399' : (p.dist < U.desvAl ? '#fbbf24' : '#f87171');
+              L.polyline([[p.latO, p.lngO], [p.lat, p.lng]], { color: sv, weight: 2, opacity: .85, dashArray: '4 4' }).addTo(g);
+              var oc = L.circleMarker([p.latO, p.lngO], { radius: 5, color: sv, weight: 2, fill: false }).addTo(g);
+              oc.bindPopup('<div class="pp"><div class="pp-num">Ubicacion original</div><div class="pp-nombre" style="color:' + sv + '">' + esc(p.nombre) + '</div>' + coordClickableHTML(p.latO, p.lngO) + '<div class="pp-row"><i class="fa-solid fa-arrows-left-right"></i>' + p.dist + ' m del punto capturado</div></div>');
+            }
+
+            /* clases visuales del punto que crea el marcador */
             var esActual = (!esPen && !p.sinOrigen && tActual != null && p.t === tActual);
-            /* ★ P-15: fuera de secuencia vs plan */
             var esFuera = (p._plan && p._planReal != null && p._planReal !== p._plan.orden);
             var clsExtra = (p.sinOrigen ? ' mk-sin-origen' : '')
                          + (esActual ? ' mk-actual' : '')
@@ -592,78 +815,26 @@
               html: '<div class="mk-dot" style="background:' + col + ';' + (esPen ? 'border-style:dashed;' : '') + '">' + num + '</div>',
               iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16]
             });
-            var m = L.marker([p.lat, p.lng], { icon: icon });
 
-            /* ★ P-15: filas del plan para el popup (compartidas pendiente/capturado) */
-            function filasPlan() {
-              var fx = '';
-              if (p._plan) {
-                var en = p._plan;
-                fx += '<div class="pp-row"><i class="fa-solid fa-clipboard-list" style="color:#5eead4"></i><span style="color:#5eead4;font-weight:700">Plan ' + esc(en.ruta) + ' #' + en.orden + '</span>' + (en.transporte ? ' &middot; ' + esc(en.transporte) : '') + ' &middot; ETA ' + esc(en.etaTxt) + '</div>';
-                if (en.ventanaTxt) fx += '<div class="pp-row"><i class="fa-solid fa-hourglass-half"></i>Ventana plan ' + esc(en.ventanaTxt) + (en.ventanaFuente ? ' <span style="color:#565e74">(' + esc(en.ventanaFuente) + ')</span>' : '') + '</div>';
-                if (!esPen && p._planReal != null) {
-                  if (p._planReal === en.orden) {
-                    fx += '<div class="pp-row"><i class="fa-solid fa-circle-check" style="color:#34d399"></i><span style="color:#34d399;font-weight:700">En secuencia seg\u00fan plan</span></div>';
-                  } else {
-                    fx += '<div class="pp-row"><i class="fa-solid fa-shuffle" style="color:#f87171"></i><span style="color:#f87171;font-weight:700">Fuera de secuencia: plan #' + en.orden + ' &rarr; real #' + p._planReal + '</span></div>';
-                  }
-                  /* diff ETA plan vs hora real de captura */
-                  var etaM = hhmm2min(en.etaTxt), realM = hhmm2min(p.hora);
-                  if (etaM != null && realM != null) {
-                    var df = realM - etaM;
-                    if (Math.abs(df) >= 5) {
-                      var colDf = df > 0 ? '#fbbf24' : '#34d399';
-                      fx += '<div class="pp-row"><i class="fa-regular fa-clock" style="color:' + colDf + '"></i><span style="color:' + colDf + ';font-weight:700">Llegada ' + Math.abs(df) + ' min ' + (df > 0 ? 'despu\u00e9s' : 'antes') + ' del plan</span></div>';
-                    }
-                  }
-                }
+            /* ★ M2: registrar en el mapa de coincidentes. Solo el primero
+               de cada ubicacion crea el marcador; si luego llega otra
+               entrega (de este u otro transporte), el marcador gana la
+               insignia xN y su popup se convierte en lista seleccionable. */
+            var crear = registrarCoincidente(t, p, num, gaps, g);
+            if (crear) {
+              var k = claveCoinc(p.lat, p.lng);
+              var reg = COINC_DE[k];
+              var m = L.marker([p.lat, p.lng], { icon: icon });
+              reg.marker = m;
+              m.__grupo = g;
+              /* popup inicial: detalles directos (si luego hay coincidencia,
+                 registrarCoincidente lo reemplaza por la lista) */
+              m.bindPopup(construirDetallesG(t, p, num, gaps), { maxWidth: 260 });
+              if (p.sector) {
+                m.bindTooltip(esc(p.sector), { permanent: true, direction: 'right', offset: [13, 0], className: 'lbl-sector', opacity: 1 });
               }
-              return fx;
+              m.addTo(g);
             }
-
-            var ph = '<div class="pp">';
-            ph += '<div class="pp-num">' + (esPen ? 'Pendiente de captura' : 'Punto ' + num) + ' &middot; ' + esc(t.codigo) + '</div>';
-            ph += '<div class="pp-nombre" style="color:' + col + '">' + esc(p.nombre) + '</div>';
-            if (p.sector) ph += '<div class="pp-row"><i class="fa-solid fa-tag"></i>' + esc(p.sector) + '</div>';
-            if (esPen) {
-              ph += filasPlan();
-              ph += '<div class="pp-row"><i class="fa-solid fa-hourglass-half"></i>GPS aun no capturado</div>';
-              ph += '<div class="pp-row"><a href="https://www.google.com/maps?q=' + p.lat + ',' + p.lng + '" target="_blank" rel="noopener"><i class="fa-solid fa-diamond-turn-right"></i> Ir a capturar</a></div>';
-            } else {
-              if (esActual) {
-                /* ★ #2: senal clara de ultima posicion conocida */
-                ph += '<div class="pp-row"><i class="fa-solid fa-location-crosshairs" style="color:#60a5fa"></i><span style="color:#60a5fa;font-weight:700">Ultima posicion conocida</span></div>';
-              }
-              ph += '<div class="pp-row"><i class="fa-regular fa-clock"></i>' + esc(cuando(p.hora)) + '</div>';
-              ph += filasPlan();
-              var gIdx = coords.length;
-              if (gIdx > 0 && gaps[gIdx] != null && gaps[gIdx] > U.saltoMin * 60000) {
-                ph += '<div class="pp-row"><i class="fa-solid fa-triangle-exclamation" style="color:#f87171"></i><span style="color:#f87171;font-weight:700">Salto de ' + fmtDur(Math.round(gaps[gIdx] / 60000)) + ' desde el punto anterior</span></div>';
-              }
-              if (p.precision) ph += '<div class="pp-row"><i class="fa-solid fa-crosshairs"></i>Precision: ' + esc(p.precision) + '</div>';
-              if (p.sinOrigen) {
-                ph += '<div class="pp-row"><i class="fa-solid fa-circle-notch" style="color:#ffd166"></i><span style="color:#ffd166;font-weight:700">Primera captura: sin coordenada de origen</span></div>';
-              }
-              /* P-05e: guard isFinite — nunca "DESVIACION ALTA: NaN m" */
-              if (p.dist !== '' && p.dist != null && isFinite(p.dist)) {
-                var sv = p.dist < U.desvOk ? '#34d399' : (p.dist < U.desvAl ? '#fbbf24' : '#f87171');
-                var svT = p.dist < U.desvOk ? 'Alineado' : (p.dist < U.desvAl ? 'Desviacion moderada' : 'DESVIACION ALTA');
-                ph += '<div class="pp-row"><i class="fa-solid fa-arrows-left-right" style="color:' + sv + '"></i><span style="color:' + sv + ';font-weight:700">' + svT + ': ' + p.dist + ' m</span>&nbsp;de ubic. original</div>';
-                if (p.latO != null) {
-                  L.polyline([[p.latO, p.lngO], [p.lat, p.lng]], { color: sv, weight: 2, opacity: .85, dashArray: '4 4' }).addTo(g);
-                  var oc = L.circleMarker([p.latO, p.lngO], { radius: 5, color: sv, weight: 2, fill: false }).addTo(g);
-                  oc.bindPopup('<div class="pp"><div class="pp-num">Ubicacion original</div><div class="pp-nombre" style="color:' + sv + '">' + esc(p.nombre) + '</div><div class="pp-coord">' + p.latO.toFixed(6) + ', ' + p.lngO.toFixed(6) + '</div><div class="pp-row"><i class="fa-solid fa-arrows-left-right"></i>' + p.dist + ' m del punto capturado</div></div>');
-                }
-              }
-            }
-            ph += '<div class="pp-coord">' + p.lat.toFixed(6) + ', ' + p.lng.toFixed(6) + '</div>';
-            ph += '</div>';
-            m.bindPopup(ph, { maxWidth: 260 });
-            /* ★ leyenda de sector: tooltip permanente discreto (si el punto tiene sector) */
-            if (p.sector) {
-              m.bindTooltip(esc(p.sector), { permanent: true, direction: 'right', offset: [13, 0], className: 'lbl-sector', opacity: 1 });
-            }
-            m.addTo(g);
             if (!esPen) coords.push([p.lat, p.lng]);
             allBounds.push([p.lat, p.lng]);
           });
@@ -711,7 +882,7 @@
         });
 
         /* ★ #4: limpiar ocultos de codigos que ya no existen en el payload */
-        Object.keys(ocultos).forEach(function(k) { if (!groups[k]) delete ocultos[k]; });
+        Object.keys(ocultos).forEach(function(k) { if (k !== '__coinc__' && !groups[k]) delete ocultos[k]; });
         try { localStorage.setItem('mapa_ocultos', JSON.stringify(ocultos)); } catch (e) {}
 
         if (!yaFit && allBounds.length > 0) {
@@ -815,6 +986,11 @@
       codigoActivo = c; /* ★ #1: recordar seleccion entre re-renders */
       var b = [];
       g.eachLayer(function(l) { if (l.getLatLng) b.push(l.getLatLng()); });
+      /* ★ M2: incluir marcadores agrupados con puntos de este transporte */
+      Object.keys(COINC_DE).forEach(function(k) {
+        var reg = COINC_DE[k];
+        if (reg.marker && reg.items.some(function(it) { return it.t.codigo === c; })) b.push(reg.marker.getLatLng());
+      });
       if (b.length) map.fitBounds(L.latLngBounds(b), { padding: [50, 50], maxZoom: 17 });
       document.querySelectorAll('.sb-item').forEach(function(el) {
         el.classList.toggle('active', el.getAttribute('data-cod') === c);
@@ -841,25 +1017,50 @@
 
     function hlT(c) {
       var g = groups[c];
-      if (!g) return;
-      g.eachLayer(function(l) {
+      if (g) g.eachLayer(function(l) {
         if (l instanceof L.Polyline) l.setStyle({ weight: 7, opacity: 1 });
         if (l instanceof L.Marker) {
           var el = l.getElement();
           if (el) { var d = el.querySelector('.mk-dot'); if (d) d.classList.add('hl'); }
         }
       });
+      /* ★ M2: resaltar tambien marcadores agrupados de este transporte */
+      Object.keys(COINC_DE).forEach(function(k) {
+        var reg = COINC_DE[k];
+        if (!reg.marker || !reg.items.some(function(it) { return it.t.codigo === c; })) return;
+        var el = reg.marker.getElement();
+        if (el) { var d = el.querySelector('.mk-dot'); if (d) d.classList.add('hl'); }
+      });
     }
 
     function uhlT(c) {
       var g = groups[c];
-      if (!g) return;
-      g.eachLayer(function(l) {
+      if (g) g.eachLayer(function(l) {
         if (l instanceof L.Polyline) l.setStyle(l.options.alerta ? { weight: 4, opacity: .9 } : { weight: 3.5, opacity: 0.5 });
         if (l instanceof L.Marker) {
           var el = l.getElement();
           if (el) { var d = el.querySelector('.mk-dot'); if (d) d.classList.remove('hl'); }
         }
+      });
+      /* ★ M2: quitar resaltado de marcadores agrupados */
+      Object.keys(COINC_DE).forEach(function(k) {
+        var reg = COINC_DE[k];
+        if (!reg.marker || !reg.items.some(function(it) { return it.t.codigo === c; })) return;
+        var el = reg.marker.getElement();
+        if (el) { var d = el.querySelector('.mk-dot'); if (d) d.classList.remove('hl'); }
+      });
+    }
+
+    /* ★ M2: visibilidad de marcadores agrupados segun transportes visibles */
+    function actualizarVisibilidadCoinc() {
+      var gc = groups['__coinc__'];
+      if (!gc) return;
+      Object.keys(COINC_DE).forEach(function(k) {
+        var reg = COINC_DE[k];
+        if (!reg.marker || !reg.multipunto) return;
+        var visible = reg.items.some(function(it) { return groups[it.t.codigo] && map.hasLayer(groups[it.t.codigo]); });
+        if (visible && !gc.hasLayer(reg.marker)) gc.addLayer(reg.marker);
+        if (!visible && gc.hasLayer(reg.marker)) gc.removeLayer(reg.marker);
       });
     }
 
@@ -879,13 +1080,23 @@
       }
       /* ★ #4: persistir entre sesiones */
       try { localStorage.setItem('mapa_ocultos', JSON.stringify(ocultos)); } catch (e) {}
+      /* ★ M2: los puntos agrupados siguen visibles si otro transporte los comparte */
+      actualizarVisibilidadCoinc();
     }
 
     function fitAll() {
       var b = [];
       Object.keys(groups).forEach(function(k) {
+        if (k === '__coinc__' || k === '__plan__') return;
         if (!map.hasLayer(groups[k])) return;
         groups[k].eachLayer(function(l) { if (l.getLatLng) b.push(l.getLatLng()); });
+      });
+      /* ★ M2: marcadores agrupados con al menos un transporte visible */
+      Object.keys(COINC_DE).forEach(function(k) {
+        var reg = COINC_DE[k];
+        if (!reg.marker) return;
+        var visible = reg.items.some(function(it) { return groups[it.t.codigo] && map.hasLayer(groups[it.t.codigo]); });
+        if (visible) b.push(reg.marker.getLatLng());
       });
       if (b.length) map.fitBounds(L.latLngBounds(b), { padding: [40, 40], maxZoom: 16 });
     }
