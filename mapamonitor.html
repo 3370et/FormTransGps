@@ -102,11 +102,16 @@
     .pp-row i{width:13px;text-align:center;font-size:9px;color:#565e74;flex-shrink:0}
     .pp-row a{color:#60a5fa;text-decoration:none;font-weight:600}
     .pp-row a:hover{text-decoration:underline}
-    /* ★ M2-3: coordenadas clicables (copiar al portapapeles) */
-    .pp-coord{font-family:'Space Grotesk',monospace;font-size:10px;color:#565e74;margin-top:5px;padding-top:5px;border-top:1px solid #22273a;cursor:pointer;transition:color .15s;display:flex;align-items:center;gap:6px;width:fit-content}
-    .pp-coord:hover{color:#60a5fa}
-    .pp-coord i{font-size:9px}
-    .pp-coord.copiado{color:#34d399 !important;animation:copiadoFade 1.4s ease}
+    /* ★ M3: coordenadas copiables por separado (lat / lng) */
+    .pp-coord{font-family:'Space Grotesk',monospace;font-size:10px;color:#565e74;margin-top:5px;padding-top:5px;border-top:1px solid #22273a;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+    .pp-coord .pc-item{display:inline-flex;align-items:center;gap:4px;cursor:pointer;transition:color .15s;padding:1px 2px;border-radius:4px}
+    .pp-coord .pc-item:hover{color:#60a5fa}
+    .pp-coord .pc-item i{font-size:9px;color:inherit;opacity:.7}
+    .pp-coord .pc-item.copiado{color:#34d399 !important;animation:copiadoFade 1.4s ease}
+    .pp-coord .pc-sep{color:#3a4054;user-select:none}
+    .pp-coord .pc-ambos{display:inline-flex;align-items:center;gap:4px;margin-left:4px;cursor:pointer;color:#565e74;background:#191d28;border:1px solid #22273a;border-radius:5px;padding:2px 7px;font-size:9px;font-weight:700;transition:all .15s}
+    .pp-coord .pc-ambos:hover{color:#e8913a;border-color:#e8913a}
+    .pp-coord .pc-ambos.copiado{color:#34d399 !important;border-color:rgba(52,211,153,.4);animation:copiadoFade 1.4s ease}
     @keyframes copiadoFade{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
     /* ===== ★ PATCH M2 — entregas coincidentes (mismo codigo u otro transporte) ===== */
     .mk-dot{position:relative}
@@ -293,16 +298,23 @@
       try { document.execCommand('copy'); cb(); } catch (e) {}
       document.body.removeChild(ta);
     }
+    /* ★ M3: HTML de coordenadas — cada valor copiable por separado
+       + boton para copiar ambas juntas "lat, lng" */
     function coordClickableHTML(lat, lng) {
-      var txt = Number(lat).toFixed(6) + ', ' + Number(lng).toFixed(6);
-      return '<span class="pp-coord" data-coord="' + esc(txt) + '" title="Clic para copiar coordenadas"><i class="fa-regular fa-copy"></i>' + txt + '</span>';
+      var la = Number(lat).toFixed(6), ln = Number(lng).toFixed(6);
+      return '<span class="pp-coord">'
+        + '<span class="pc-item" data-coord="' + esc(la) + '" title="Clic para copiar latitud"><i class="fa-regular fa-copy"></i>' + la + '</span>'
+        + '<span class="pc-sep">,</span>'
+        + '<span class="pc-item" data-coord="' + esc(ln) + '" title="Clic para copiar longitud"><i class="fa-regular fa-copy"></i>' + ln + '</span>'
+        + '<span class="pc-ambos" data-coord="' + esc(la + ', ' + ln) + '" title="Clic para copiar ambas"><i class="fa-solid fa-clone"></i> ambas</span>'
+        + '</span>';
     }
-    /* delegacion global: clic en cualquier .pp-coord copia al portapapeles */
+    /* delegacion global: clic en lat, lng o "ambas" copia ese valor */
     document.addEventListener('click', function(e) {
-      var c = e.target && e.target.closest ? e.target.closest('.pp-coord') : null;
-      if (!c) return;
+      var c = e.target && e.target.closest ? e.target.closest('[data-coord]') : null;
+      if (!c || !c.classList.contains('pc-item') && !c.classList.contains('pc-ambos')) return;
       e.stopPropagation();
-      copiarAlPortapapeles(c.getAttribute('data-coord') || c.textContent.trim(), c);
+      copiarAlPortapapeles(c.getAttribute('data-coord'), c);
     }, true);
     /* ★ M2: redondeo de coordenadas para agrupar (~11 m -> 4 decimales) */
     function claveCoinc(lat, lng) {
