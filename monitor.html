@@ -1734,6 +1734,7 @@
             var accN = numLimpio(capt.accuracy);
             puntos.push({
               nombre: item.item || 'Sin nombre',
+              codc: item.codclnt || '',   /* ★ M2: codigo de cliente para el mapa */
               sector: item.sector || '',
               hora: capt.fechaCaptura || capt.fechaCapturaTxt || '',
               t: tstamp(capt.fechaCaptura, capt.fechaCapturaTxt),
@@ -1749,6 +1750,7 @@
             if (!isFinite(la2) || !isFinite(ln2)) return;
             puntos.push({
               nombre: item.item || 'Sin nombre',
+              codc: item.codclnt || '',   /* ★ M2: codigo de cliente para el mapa */
               sector: item.sector || '',
               hora: '', lat: la2, lng: ln2,
               precision: '', dist: '', latO: null, lngO: null,
