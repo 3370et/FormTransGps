@@ -134,6 +134,27 @@
     .modal-btn.reabrir-ok{background:var(--warning);color:#0f1117}
     .modal-btn.reabrir-ok:hover{background:#fcd34d;box-shadow:0 4px 16px rgba(251,191,36,.3)}
     .modal-btn.reabrir-ok:disabled{opacity:.65;cursor:wait}
+    /* ===== ★ PATCH S6/S7 — reasignación de entregas entre rutas ===== */
+    .cc-ruta-btn.reasignar{border-color:rgba(96,165,250,.3);background:rgba(96,165,250,.08);color:var(--info)}
+    .cc-ruta-btn.reasignar:hover{background:rgba(96,165,250,.18);border-color:var(--info)}
+    .sb-btn-rs{width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(96,165,250,.3);background:rgba(96,165,250,.06);color:var(--info);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s}
+    .sb-btn-rs:hover{background:rgba(96,165,250,.14);border-color:var(--info)}
+    .rs-lista{margin:12px 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;max-height:250px;overflow-y:auto}
+    .rs-item{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:8px 10px;cursor:pointer;transition:all .15s}
+    .rs-item:hover{border-color:#3a4060}
+    .rs-item.sel{border-color:var(--info);background:rgba(96,165,250,.06)}
+    .rs-item input{accent-color:#60a5fa;flex-shrink:0}
+    .rs-item .rs-txt{flex:1;min-width:0}
+    .rs-item .rs-nombre{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+    .rs-item .rs-sub{font-size:10.5px;color:var(--fg3)}
+    .rs-item .rs-codc{font-family:'Space Grotesk',monospace;font-size:9px;background:rgba(96,165,250,.1);color:var(--info);border:1px solid rgba(96,165,250,.2);border-radius:4px;padding:0 4px}
+    .rs-sel{width:100%;background:var(--bg);border:1.5px solid var(--border);color:var(--fg);border-radius:10px;padding:11px 12px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;margin-top:4px}
+    .rs-sel:focus{border-color:var(--info)}
+    .rs-sel option{background:var(--card)}
+    .rs-vacio{font-size:12px;color:var(--fg3);padding:12px;border:1px dashed var(--border);border-radius:8px;text-align:center}
+    .modal-btn.reasignar-ok{background:var(--info);color:#0f1117}
+    .modal-btn.reasignar-ok:hover{background:#7db6fb;box-shadow:0 4px 16px rgba(96,165,250,.3)}
+    .modal-btn.reasignar-ok:disabled{opacity:.65;cursor:wait}
     .cc-toggle{background:none;border:none;color:var(--fg3);font-size:14px;cursor:pointer;padding:4px;transition:transform .2s;flex-shrink:0}
     .cc-toggle:hover{color:var(--fg)}
     .cc-body{display:none;padding:0 16px 16px}
@@ -346,6 +367,33 @@
     </div>
   </div>
 
+  <!-- ★ PATCH S6/S7 — modal de reasignación de entregas -->
+  <div class="modal-overlay" id="modalReasignar">
+    <div class="modal-box" style="max-width:470px">
+      <div class="modal-head">
+        <h2 id="raTitulo"><i class="fa-solid fa-right-left" style="color:var(--info)"></i> Reasignar entregas</h2>
+        <button class="modal-close" onclick="cancelarReasignar()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding:18px 22px">
+        <p style="font-size:12.5px;color:var(--fg2);line-height:1.5;margin-bottom:12px">
+          Mueve entregas <b>pendientes</b> (sin captura GPS) de la ruta
+          <b id="raOrigenTxt" style="color:var(--accent)"></b> a otra ruta,
+          para que otro transportista las entregue.
+        </p>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fg3);margin-bottom:6px">Entregas pendientes de la ruta</div>
+        <ul class="rs-lista" id="raLista"></ul>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fg3);margin-top:14px">Ruta destino</div>
+        <select class="rs-sel" id="raDestino"></select>
+        <div class="rr-aviso" style="background:rgba(96,165,250,.05);border-color:rgba(96,165,250,.2);color:var(--info)"><i class="fa-solid fa-circle-info"></i> Si el destino esta en proceso, su transportista vera las entregas nuevas en su lista en menos de 1 minuto y la ruta origen las soltara automaticamente (deben tener la app abierta). Si el destino no ha iniciado, arrancara ya con las entregas reasignadas.</div>
+        <div class="cr-msg" id="raMsg"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="modal-btn reasignar-ok" id="raBtnOk" onclick="confirmarReasignar()"><i class="fa-solid fa-right-left"></i> Reasignar</button>
+        <button class="modal-btn cerrar-modal" onclick="cancelarReasignar()"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="dashboard" id="dashboard">
     <div class="dash-header">
       <h1>
@@ -442,7 +490,15 @@
             cualquier dispositivo retome la ruta; refresca
             ultimaActividad para que la app no la trate como liberada.
        S4 — Visibilidad: badges "Reabierta" / "Manual" y dispositivo
-            vigente en el title de los badges de estado. */
+            vigente en el title de los badges de estado.
+       S6 — Boton "Reasignar" en rutas EN PROCESO: mover entregas
+            pendientes (sin GPS) a otra ruta para que otro transportista
+            ayude. Escribe formConfig + destino (items+fechasRuta) +
+            origen (quitar+reasignadasSalida). Requiere PATCH T4 en la
+            app del transportista para sincronizar en vivo.
+       S7 — Reasignar en rutas NO INICIADAS (camion danado antes de
+            salir): la ruta solo existe en formConfig; mover los items
+            de codigo es suficiente. Destino en proceso o no iniciado. */
 
     /* ===== CONSTANTES ===== */
     var FIREBASE_BASE = 'https://datos-formulario-f3cde-default-rtdb.firebaseio.com';
@@ -744,8 +800,10 @@
       var cod = b.getAttribute('data-codigo');
       var acc = b.getAttribute('data-accion');
       if (acc === 'gmaps') abrirGoogleMapsRuta(cod);
-      else if (acc === 'cerrar') abrirCerrarRuta(cod);     /* ★ PATCH S1 */
-      else if (acc === 'reabrir') abrirReabrirRuta(cod);   /* ★ PATCH S3 */
+      else if (acc === 'cerrar') abrirCerrarRuta(cod);            /* ★ PATCH S1 */
+      else if (acc === 'reabrir') abrirReabrirRuta(cod);          /* ★ PATCH S3 */
+      else if (acc === 'reasignar') abrirReasignar(cod);          /* ★ PATCH S6 */
+      else if (acc === 'reasignarNoIni') abrirReasignarNoIniciada(cod); /* ★ PATCH S7 */
       else verRutaEnMapa(cod);
     }, true);
 
@@ -974,7 +1032,7 @@
     }
 
     function cerrarCompartir() { document.getElementById('modalCompartir').classList.remove('visible'); }
-    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { cerrarCompartir(); cancelarCerrarRuta(); cancelarReabrirRuta(); } });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { cerrarCompartir(); cancelarCerrarRuta(); cancelarReabrirRuta(); cancelarReasignar(); } });
     document.getElementById('modalCompartir').addEventListener('click', function(e) { if (e.target === this) cerrarCompartir(); });
 
     /* ===== ★ PATCH S1 — CIERRE MANUAL DE RUTA (supervisor) ===== */
@@ -1127,6 +1185,325 @@
     }
 
     document.getElementById('modalReabrirRuta').addEventListener('click', function(e) { if (e.target === this) cancelarReabrirRuta(); });
+
+    /* ============================================================
+       ★ PATCH S6/S7 — REASIGNACIÓN DE ENTREGAS ENTRE RUTAS
+       S6: origen EN PROCESO (transportista ayuda a otro atrasado)
+       S7: origen NO INICIADA (camion danado antes de salir)
+       Destino: en proceso (absorbe en ≤60s via PATCH T4 de la app)
+       o no iniciado (arrancara ya con las entregas reasignadas).
+       ============================================================ */
+    var raOrigen = null;
+    var raEnviando = false;
+
+    /* clave de negocio: estable entre monitor, base y app (independiente de posiciones) */
+    function claveNegocioM(it) {
+      return String(it.item || '').toLowerCase() + '|' + String(it.fechaDespacho || '') + '|' + String(it.codclnt || '');
+    }
+    /* copia de la normalización de fechas de la app (para fechasRuta del destino) */
+    function normalizarFechaDespachoM(s) {
+      if (s === null || s === undefined) return '';
+      var t = String(s).trim().replace(/\s+/g, ' ');
+      if (!t) return '';
+      var m = t.match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+      if (!m) return t.toLowerCase();
+      var dia, mes, anio;
+      if (m[1].length === 4) { anio = +m[1]; mes = +m[2]; dia = +m[3]; }
+      else { dia = +m[1]; mes = +m[2]; anio = +m[3]; if (anio < 100) anio += 2000; }
+      function p(n) { return String(n).padStart(2, '0'); }
+      var hora = (m[4] !== undefined) ? (p(+m[4]) + ':' + m[5] + ':' + (m[6] || '00')) : '00:00:00';
+      return anio + '-' + p(mes) + '-' + p(dia) + ' ' + hora;
+    }
+    function restaurarTituloRA() {
+      document.getElementById('raTitulo').innerHTML = '<i class="fa-solid fa-right-left" style="color:var(--info)"></i> Reasignar entregas';
+    }
+
+    /* S6: abrir con origen en proceso */
+    async function abrirReasignar(codigo) {
+      if (raEnviando) return;
+      raOrigen = codigo;
+      restaurarTituloRA();
+      document.getElementById('raOrigenTxt').textContent = codigo;
+      var msg = document.getElementById('raMsg');
+      msg.classList.remove('visible'); msg.textContent = '';
+      var lista = document.getElementById('raLista');
+      var sel = document.getElementById('raDestino');
+      lista.innerHTML = '<div class="rs-vacio">Cargando entregas...</div>';
+      sel.innerHTML = '';
+      document.getElementById('modalReasignar').classList.add('visible');
+      try {
+        var urlBase = esJornadaFecha() ? FIREBASE_URL + '/' + jornadaSeleccionada : FIREBASE_URL;
+        var rO = await fetch(conAuth(urlBase + '/' + encodeURIComponent(codigo) + '.json'));
+        if (!rO.ok) throw new Error('HTTP ' + rO.status);
+        var entryO = await rO.json();
+        var itemsO = extraerItemsDF(entryO && entryO.datosFormulario);
+        var pendientes = itemsO.filter(function(it) { return it && it.item && !tieneGpsDispositivo(it); });
+        if (!pendientes.length) {
+          lista.innerHTML = '<div class="rs-vacio">Esta ruta no tiene entregas pendientes sin GPS.</div>';
+        } else {
+          var h = '';
+          pendientes.forEach(function(it) {
+            h += '<li class="rs-item" data-key="' + esc(claveNegocioM(it)) + '">'
+              + '<input type="checkbox">'
+              + '<span class="rs-txt"><span class="rs-nombre">' + esc(it.item) + '</span>'
+              + '<span class="rs-sub">' + (it.sector ? esc(it.sector) : 'sin sector')
+              + (it.codclnt ? ' &middot; <span class="rs-codc">' + esc(it.codclnt) + '</span>' : '')
+              + (it.fin ? ' &middot; fin ' + esc(it.fin) : '') + '</span></span></li>';
+          });
+          lista.innerHTML = h;
+          lista.querySelectorAll('.rs-item').forEach(function(li) {
+            li.addEventListener('click', function(ev) {
+              var cb = li.querySelector('input');
+              if (ev.target !== cb) { cb.checked = !cb.checked; ev.preventDefault(); }
+              li.classList.toggle('sel', cb.checked);
+            });
+          });
+        }
+        var opts = '';
+        datosGlobales.procesos.forEach(function(reg) {
+          if (reg.codigo === codigo) return;
+          opts += '<option value="' + esc(reg.codigo) + '">Ruta ' + esc(reg.codigo) + ' — en proceso (ayuda en curso)</option>';
+        });
+        (datosGlobales.noIniciadas || []).forEach(function(r) {
+          if (r.codigo === codigo) return;
+          opts += '<option value="' + esc(r.codigo) + '">Ruta ' + esc(r.codigo) + ' — no iniciada</option>';
+        });
+        if (!opts) opts = '<option value="">(no hay rutas destino disponibles)</option>';
+        sel.innerHTML = opts;
+      } catch (e) {
+        lista.innerHTML = '<div class="rs-vacio">Error al leer la ruta: ' + esc(e.message) + '</div>';
+      }
+    }
+
+    /* S7: abrir con origen no iniciado (camion danado antes de salir) */
+    async function abrirReasignarNoIniciada(codigo) {
+      if (raEnviando) return;
+      raOrigen = codigo;
+      document.getElementById('raTitulo').innerHTML = '<i class="fa-solid fa-truck-medical" style="color:var(--info)"></i> Reasignar entregas (ruta no iniciada)';
+      document.getElementById('raOrigenTxt').textContent = codigo + ' (no iniciada)';
+      var msg = document.getElementById('raMsg');
+      msg.classList.remove('visible'); msg.textContent = '';
+      var lista = document.getElementById('raLista');
+      var sel = document.getElementById('raDestino');
+      lista.innerHTML = '<div class="rs-vacio">Cargando entregas...</div>';
+      sel.innerHTML = '';
+      document.getElementById('modalReasignar').classList.add('visible');
+      try {
+        var cfg = await (await fetch(conAuth(FIREBASE_URL_CONFIG + '.json'))).json();
+        var items = (cfg && Array.isArray(cfg.items))
+          ? cfg.items.filter(function(it) { return String(it.codigo || '') === String(codigo); })
+          : [];
+        if (!items.length) {
+          lista.innerHTML = '<div class="rs-vacio">Esta ruta no tiene entregas configuradas.</div>';
+        } else {
+          var h = '';
+          items.forEach(function(it) {
+            var key = String(it.name || '').toLowerCase() + '|' + normalizarFechaDespachoM(it.fecha || '') + '|' + String(it.CODCLNT || it.codclnt || '');
+            h += '<li class="rs-item" data-key="' + esc(key) + '">'
+              + '<input type="checkbox">'
+              + '<span class="rs-txt"><span class="rs-nombre">' + esc(it.name) + '</span>'
+              + '<span class="rs-sub">' + (it.sector ? esc(it.sector) : 'sin sector')
+              + ((it.codclnt || it.CODCLNT) ? ' &middot; <span class="rs-codc">' + esc(String(it.CODCLNT || it.codclnt || '')) + '</span>' : '')
+              + (it.fin ? ' &middot; fin ' + esc(it.fin) : '') + '</span></span></li>';
+          });
+          lista.innerHTML = h;
+          lista.querySelectorAll('.rs-item').forEach(function(li) {
+            li.addEventListener('click', function(ev) {
+              var cb = li.querySelector('input');
+              if (ev.target !== cb) { cb.checked = !cb.checked; ev.preventDefault(); }
+              li.classList.toggle('sel', cb.checked);
+            });
+          });
+        }
+        var opts = '';
+        datosGlobales.procesos.forEach(function(reg) {
+          opts += '<option value="' + esc(reg.codigo) + '">Ruta ' + esc(reg.codigo) + ' — en proceso (ayuda en curso)</option>';
+        });
+        (datosGlobales.noIniciadas || []).forEach(function(r) {
+          if (r.codigo === codigo) return;
+          opts += '<option value="' + esc(r.codigo) + '">Ruta ' + esc(r.codigo) + ' — no iniciada</option>';
+        });
+        if (!opts) opts = '<option value="">(no hay rutas destino disponibles)</option>';
+        sel.innerHTML = opts;
+      } catch (e) {
+        lista.innerHTML = '<div class="rs-vacio">Error: ' + esc(e.message) + '</div>';
+      }
+    }
+
+    function cancelarReasignar() {
+      if (raEnviando) return;
+      raOrigen = null;
+      restaurarTituloRA();
+      document.getElementById('modalReasignar').classList.remove('visible');
+    }
+
+    document.getElementById('modalReasignar').addEventListener('click', function(e) { if (e.target === this) cancelarReasignar(); });
+
+    /* S6/S7 unificada: mueve entregas del origen (en proceso o no iniciada)
+       al destino (en proceso o no iniciada) */
+    async function confirmarReasignar() {
+      if (!raOrigen || raEnviando) return;
+      var msg = document.getElementById('raMsg');
+      var btn = document.getElementById('raBtnOk');
+      var destino = document.getElementById('raDestino').value;
+      if (!destino) { msg.textContent = 'Selecciona una ruta destino.'; msg.classList.add('visible'); return; }
+      var selKeys = [];
+      document.querySelectorAll('#raLista .rs-item.sel').forEach(function(li) { selKeys.push(li.getAttribute('data-key')); });
+      if (!selKeys.length) { msg.textContent = 'Selecciona al menos una entrega pendiente.'; msg.classList.add('visible'); return; }
+
+      raEnviando = true; btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Reasignando...';
+      try {
+        var urlBase = esJornadaFecha() ? FIREBASE_URL + '/' + jornadaSeleccionada : FIREBASE_URL;
+        var urlO = urlBase + '/' + encodeURIComponent(raOrigen);
+        var urlD = urlBase + '/' + encodeURIComponent(destino);
+
+        /* S7: el origen no iniciado no tiene nodo en codigosUsados */
+        var esOrigenNoIniciado = !registrosPorCodigo[raOrigen];
+
+        /* estados frescos: destino + formConfig; el origen solo si existe */
+        var rs0 = await Promise.all([
+          fetch(conAuth(urlD + '.json')),
+          fetch(conAuth(FIREBASE_URL_CONFIG + '.json'))
+        ].concat(!esOrigenNoIniciado ? [fetch(conAuth(urlO + '.json'))] : []));
+        if (!rs0[0].ok || !rs0[1].ok) throw new Error('HTTP al leer rutas');
+        var entryD = await rs0[0].json();
+        var cfg = await rs0[1].json();
+        var entryO = null;
+        if (!esOrigenNoIniciado) {
+          if (!rs0[2].ok) throw new Error('HTTP al leer ruta origen');
+          entryO = await rs0[2].json();
+        }
+        var destinoEnProceso = !!(entryD && entryD.estado === 'en_proceso');
+        var cfgItems = (cfg && Array.isArray(cfg.items)) ? cfg.items : [];
+
+        /* items a mover */
+        var aMover;
+        if (esOrigenNoIniciado) {
+          /* S7: desde formConfig (no hay sesion) */
+          aMover = cfgItems.filter(function(c) {
+            if (String(c.codigo || '') !== String(raOrigen)) return false;
+            var key = String(c.name || '').toLowerCase() + '|' + normalizarFechaDespachoM(c.fecha || '') + '|' + String(c.CODCLNT || c.codclnt || '');
+            return selKeys.indexOf(key) !== -1;
+          }).map(function(c) {
+            return { item: c.name || '', codclnt: String(c.CODCLNT || c.codclnt || ''), sector: c.sector || '', inicio: c.ini || '', fin: c.fin || '', fechaDespacho: normalizarFechaDespachoM(c.fecha || '') };
+          });
+          if (aMover.length !== selKeys.length) throw new Error('Alguna entrega ya no coincide con la configuracion. Cierra y vuelve a abrir.');
+        } else {
+          /* S6: desde la sesion en curso — solo pendientes sin GPS */
+          var itemsO = extraerItemsDF(entryO && entryO.datosFormulario);
+          aMover = itemsO.filter(function(it) { return it && it.item && selKeys.indexOf(claveNegocioM(it)) !== -1 && !tieneGpsDispositivo(it); });
+          if (aMover.length !== selKeys.length) throw new Error('Alguna entrega ya no esta pendiente (o ya fue capturada). Cierra y vuelve a abrir.');
+        }
+
+        var promesas = [];
+
+        /* a) formConfig: SIEMPRE (S6 y S7) — el item pasa al codigo destino */
+        var usadosCfg = {};
+        aMover.forEach(function(it) {
+          for (var idx = 0; idx < cfgItems.length; idx++) {
+            if (usadosCfg[idx]) continue;
+            var c = cfgItems[idx];
+            if (String(c.codigo || '') !== String(raOrigen)) continue;
+            if (String(c.CODCLNT || c.codclnt || '') !== String(it.codclnt || '')) continue;
+            if (String(c.name || '') !== String(it.item || '')) continue;
+            usadosCfg[idx] = true;
+            promesas.push(fetch(conAuth(FIREBASE_URL_CONFIG + '/items/' + idx + '/codigo.json'), {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(String(destino))
+            }));
+            break;
+          }
+        });
+
+        /* b) S6: origen en proceso — quitar items de su sesion + salidas */
+        if (!esOrigenNoIniciado) {
+          var dfO = (entryO && entryO.datosFormulario) || null;
+          var dfKeys = [];
+          if (Array.isArray(dfO)) { for (var q = 0; q < dfO.length; q++) dfKeys.push(String(q)); }
+          else if (dfO && typeof dfO === 'object') { dfKeys = Object.keys(dfO).sort(function(a, b) { return (+a) - (+b); }); }
+          var salidas = Array.isArray(entryO.reasignadasSalida) ? entryO.reasignadasSalida.slice() : [];
+          aMover.forEach(function(it) { salidas.push(claveNegocioM(it)); });
+          aMover.forEach(function(it) {
+            var clave = null;
+            dfKeys.forEach(function(k) {
+              if (clave !== null) return;
+              var v = dfO[k];
+              if (v && v.item && claveNegocioM(v) === claveNegocioM(it)) clave = k;
+            });
+            if (clave !== null) {
+              promesas.push(fetch(conAuth(urlO + '/datosFormulario/' + clave + '.json'), {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: 'null'
+              }));
+            }
+          });
+          promesas.push(fetch(conAuth(urlO + '/reasignadasSalida.json'), {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(salidas)
+          }));
+        }
+        /* S7 (origen NO iniciado): no hay nada que limpiar en codigosUsados —
+           formConfig es la única fuente y ya se actualizó arriba */
+
+        /* c) destino en proceso: agregar items + fechasRuta (S6 y S7 igual) */
+        if (destinoEnProceso) {
+          var itemsD = extraerItemsDF(entryD && entryD.datosFormulario);
+          var maxIdx = -1;
+          itemsD.forEach(function(p) { if (p.idxItem !== undefined && p.idxItem > maxIdx) maxIdx = p.idxItem; });
+          var nuevos = aMover.map(function(it, i) {
+            var fc = null;
+            for (var ci = 0; ci < cfgItems.length; ci++) {
+              var c2 = cfgItems[ci];
+              if (String(c2.codigo || '') !== String(raOrigen)) continue;
+              if (String(c2.CODCLNT || c2.codclnt || '') !== String(it.codclnt || '')) continue;
+              if (String(c2.name || '') !== String(it.item || '')) continue;
+              fc = c2; break;
+            }
+            var n = {
+              idxItem: maxIdx + 1 + i,
+              item: it.item, codclnt: it.codclnt || '', sector: it.sector || '',
+              inicio: it.inicio || '', fin: it.fin || '', fechaDespacho: it.fechaDespacho || '',
+              reasignadoDe: raOrigen, reasignadoEn: new Date().toISOString()
+            };
+            if (fc && numLimpio(fc.Latitud) != null && numLimpio(fc.Longitud) != null) {
+              n.gpsOriginal = { lat: numLimpio(fc.Latitud), lng: numLimpio(fc.Longitud), fechaCaptura: new Date().toISOString() };
+            }
+            return n;
+          });
+          nuevos.forEach(function(n) {
+            promesas.push(fetch(conAuth(urlD + '/datosFormulario/' + n.idxItem + '.json'), {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(n)
+            }));
+          });
+          var frD = Array.isArray(entryD.fechasRuta) ? entryD.fechasRuta.slice() : [];
+          aMover.forEach(function(it) {
+            var f = normalizarFechaDespachoM(it.fechaDespacho);
+            if (f && frD.indexOf(f) === -1) frD.push(f);
+          });
+          promesas.push(fetch(conAuth(urlD + '/fechasRuta.json'), {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(frD)
+          }));
+        }
+        /* destino NO iniciado (S7): formConfig ya lo deja listo para su arranque */
+
+        var rs = await Promise.all(promesas);
+        rs.forEach(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); });
+
+        var nMov = aMover.length;
+        raOrigen = null;
+        document.getElementById('modalReasignar').classList.remove('visible');
+        restaurarTituloRA();
+        mostrarToast(nMov + ' entrega' + (nMov !== 1 ? 's' : '') + ' movida' + (nMov !== 1 ? 's' : '') + ' a la ruta ' + esc(destino), 'ok');
+        cfgCache.ms = 0;          /* S6/S7: invalidar cache de formConfig para reflejar el cambio ya */
+        ultimaFirmaDatos = null;  /* fuerza re-render inmediato */
+        cargarDatos();
+      } catch (e) {
+        msg.textContent = 'No se pudo reasignar: ' + esc(e && e.message ? e.message : 'error de conexion');
+        msg.classList.add('visible');
+      } finally {
+        raEnviando = false;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-right-left"></i> Reasignar';
+      }
+    }
 
     function generarTextoPlano() {
       var datos = obtenerTodosLosDatos();
@@ -1502,11 +1879,13 @@
           });
           tHtml += '</tbody></table>';
         }
+        /* ★ PATCH S7 — reasignar entregas de esta ruta antes de que inicie (camion danado, etc.) */
+        var rsBtn = '<button class="sb-btn-rs" data-accion="reasignarNoIni" data-codigo="' + esc(ruta.codigo) + '" title="Camion danado u otro motivo: mover entregas de esta ruta a otra"><i class="fa-solid fa-right-left"></i> Reasignar entregas</button>';
         html += '<div class="codigo-card"><div class="cc-header" onclick="toggleCard(this)">'
           + '<div class="cc-header-left"><span class="cc-codigo">' + esc(ruta.codigo) + '</span><span class="cc-estado noiniciada">No iniciada</span>' + (atrasada ? '<span class="cc-estado atrasada">Atrasada</span>' : '') + '</div>'
           + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' + metaHtml + '</div>'
           + '<i class="fa-solid fa-chevron-down cc-toggle"></i></div><div class="cc-body">'
-          + rHtml + tHtml + '</div></div>';
+          + rHtml + tHtml + rsBtn + '</div></div>';
       });
       cont.innerHTML = html;
     }
@@ -1538,11 +1917,13 @@
         var rBtn = reg.gpsCount > 0 ? '<button class="cc-ruta-btn" data-accion="ruta" data-codigo="' + esc(reg.codigo) + '"><i class="fa-solid fa-route"></i> Ruta</button>' : '';
         /* ★ PATCH S1 — boton de cierre manual para el supervisor */
         var cerrarBtn = '<button class="cc-ruta-btn cerrar" data-accion="cerrar" data-codigo="' + esc(reg.codigo) + '" title="Marcar la ruta como completada con fecha y hora de fin manuales"><i class="fa-solid fa-flag-checkered"></i> Completar</button>';
+        /* ★ PATCH S6 — reasignar entregas pendientes a otra ruta (transportista que ayuda) */
+        var reasignarBtn = '<button class="cc-ruta-btn reasignar" data-accion="reasignar" data-codigo="' + esc(reg.codigo) + '" title="Mover entregas pendientes de esta ruta a otro transportista que este ayudando"><i class="fa-solid fa-right-left"></i> Reasignar</button>';
         /* ★ PATCH S4 — dispositivo vigente visible en el title del estado */
         var estTitle = reg.dispositivoId ? 'Dispositivo vigente: ' + esc(String(reg.dispositivoId)) : 'Sin dispositivo reclamado';
         html += '<div class="codigo-card"><div class="cc-header" onclick="toggleCard(this)">'
           + '<div class="cc-header-left"><span class="cc-codigo">' + esc(reg.codigo) + '</span><span class="cc-estado proceso" title="' + estTitle + '">En proceso</span>' + badge + ((reg.rutasHoy > 1) ? '<span class="cc-estado horario" title="El codigo tuvo varias rutas en esta jornada">' + reg.rutasHoy + ' rutas hoy</span>' : '') + '</div>'
-          + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' + cerrarBtn + rBtn
+          + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' + cerrarBtn + reasignarBtn + rBtn
           + '<span class="cc-fecha">' + esc(tI) + '</span>' + iTxt + inactHtml + '</div>'
           + '<i class="fa-solid fa-chevron-down cc-toggle"></i></div><div class="cc-body">'
           + construirResumenInline(reg, 'proceso') + renderTablaItems(reg, 'proceso')
