@@ -10,13 +10,24 @@
   #map { height: 100vh; }
   #panel { position: absolute; top: 10px; right: 10px; z-index: 1000; background: #fff;
            padding: 12px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.35);
-           width: 380px; max-height: 90vh; overflow: auto; }
+           width: 380px; max-height: 90vh; overflow: hidden;
+           display: flex; flex-direction: column; }
   #panel h3 { margin: 0 0 8px; }
+  #panelCabecera { flex: none; }
+  #listaRutas { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+  .rutaCard { border-bottom: 1px solid #ececec; padding: 6px 0 8px; }
+  .rutaCard:last-child { border-bottom: none; }
+  .filaCab { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .chipColor { width: 20px; height: 20px; padding: 0; border: 1px solid #888; border-radius: 4px;
+               background: none; cursor: pointer; flex: none; }
+  .chipColor::-webkit-color-swatch-wrapper { padding: 0; }
+  .chipColor::-webkit-color-swatch { border: none; border-radius: 3px; }
+  #panelPie { flex: none; }
   .fila { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
   .fila.wrap { flex-wrap: wrap; }
   .fila label { display: flex; align-items: center; gap: 3px; }
   .chip { width: 12px; height: 12px; border-radius: 3px; flex: none; }
-  .nombre { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+  .nombre { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .kg { font-weight: 700; white-space: nowrap; }
   .camion { max-width: 230px; }
   .mini { color: #555; font-size: 11px; white-space: nowrap; }
@@ -185,12 +196,41 @@ let division = null;      // {ruta} cuando el editor de división está abierto 
 const colores = ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#a65628","#f781bf","#999933","#66c2a5","#fc8d62"];
 let nColor = 0;
 const colorAsignado = {};
+try{ // restaurar colores elegidos por el usuario en este navegador
+  const guardados = JSON.parse(localStorage.getItem("coloresRutas") || "{}");
+  Object.keys(guardados).forEach(k => { if(typeof guardados[k] === "string") colorAsignado[k] = guardados[k]; });
+}catch(e){}
 function colorDe(ruta){
   if(ruta === null || ruta === "Sin ruta") return "#8a8a8a";
   if(!(ruta in colorAsignado)) colorAsignado[ruta] = colores[nColor++ % colores.length];
   return colorAsignado[ruta];
 }
 function visible(c){ return filtros[c.ruta || "Sin ruta"] !== false; }
+
+function persistirColores(){
+  try{ localStorage.setItem("coloresRutas", JSON.stringify(colorAsignado)); }catch(e){}
+}
+
+// Cambia el color de identificación de una ruta (marcadores + polilíneas + panel).
+// completo=false mientras se arrastra el selector (rápido); true al confirmar (guarda).
+function aplicarColorRuta(r, col, completo){
+  if(!r || r === "Sin ruta") return;
+  colorAsignado[r] = col;
+  const colFinal = colorDe(r);
+  clientes.forEach((c, i) => {
+    if((c.ruta || "Sin ruta") !== r) return;
+    const m = marcadores[i];
+    if(!m) return;
+    if(completo) pintar(i);
+    else m.setStyle({color: colFinal, fillColor: colFinal});
+  });
+  capasOrden.forEach(p => { if(p._ruta === r) p.setStyle({color: colFinal}); });
+  if(completo){
+    persistirColores();
+    renderPanel();
+    estado("Color de '" + r + "' actualizado (se recuerda en este navegador)");
+  }
+}
 
 // ============================================================
 //  MAPA
@@ -456,9 +496,10 @@ function renderPanel(){
   const claves = Object.keys(res).sort((a, b) =>
     (a === "Sin ruta") - (b === "Sin ruta") || a.localeCompare(b));
 
-  let html = "<h3>Rutas " + FECHA + "</h3>";
-  html += '<div class="fila verbtns"><span class="mini">Ver:</span>' +
-          '<button id="verTodas">Todas</button><button id="verNinguna">Ninguna</button></div>';
+  let html = '<div id="panelCabecera"><h3>Rutas ' + FECHA + '</h3>' +
+             '<div class="fila verbtns"><span class="mini">Ver:</span>' +
+             '<button id="verTodas">Todas</button><button id="verNinguna">Ninguna</button></div></div>';
+  html += '<div id="listaRutas">';
 
   claves.forEach(r => {
     const info = res[r];
@@ -499,12 +540,17 @@ function renderPanel(){
     if(hayKav) extra += barra(info.kav, cap.kavetas, "kavetas");
     if(hayGan) extra += barra(info.gan, cap.ganchos, "ganchos");
 
-    // Fila principal (con ✂ en lugar del campo de capacidad)
-    html += '<div class="fila wrap">' +
+    // Tarjeta de la ruta: cabecera en una sola línea + color elegible
+    const selectorColor = (r === "Sin ruta")
+      ? '<span class="chip" style="background:' + info.color + '"></span>'
+      : '<input type="color" class="chipColor" data-color-ruta="' + esc(r) + '" value="' + colorDe(r) +
+        '" title="Elegir color de identificación de la ruta">';
+    html += '<div class="rutaCard">' +
+            '<div class="filaCab">' +
             '<input type="checkbox" data-ver="' + esc(r) + '"' + (vis ? " checked" : "") + '>' +
-            '<span class="chip" style="background:' + info.color + '"></span>' +
+            selectorColor +
             '<span class="nombre">' + r + '</span>' +
-            '<span>' + info.n + ' cli</span>' +
+            '<span class="mini">' + info.n + ' cli</span>' +
             '<span class="kg">' + Math.round(info.kg) + ' kg</span>' +
             (hayCar ? '<span class="mini">' + Math.round(info.car) + ' cart</span>' : "") + kmtxt +
             (r !== "Sin ruta" ? '<button class="divBtn" data-ruta="' + esc(r) + '" title="Dividir esta ruta">✂</button>' : "") +
@@ -527,9 +573,11 @@ function renderPanel(){
     }
 
     html += camionHTML + extra;
+    html += '</div>'; // cierra .rutaCard
   });
+  html += '</div>'; // cierra #listaRutas
 
-  html += '<div class="fila total"><span class="nombre">TOTAL</span>' +
+  html += '<div id="panelPie" class="fila total"><span class="nombre">TOTAL</span>' +
           '<span>' + clientes.length + ' cli</span>' +
           '<span class="kg">' + Math.round(totalKg) + ' kg</span>' +
           (hayCar ? '<span class="mini">' + Math.round(Object.values(res).reduce((s, i) => s + i.car, 0)) + ' cart</span>' : "") +
@@ -561,6 +609,12 @@ function renderPanel(){
   });
 
   document.querySelectorAll("#panel .divBtn").forEach(b => b.onclick = () => abrirDivision(b.dataset.ruta));
+
+  document.querySelectorAll("#panel .chipColor").forEach(inp => {
+    const r = inp.dataset.colorRuta;
+    inp.oninput  = () => aplicarColorRuta(r, inp.value, false); // mientras se arrastra
+    inp.onchange = () => aplicarColorRuta(r, inp.value, true);  // al confirmar
+  });
 
   const bC = document.getElementById("btnDivCarga");
   if(bC) bC.onclick = ejecutarDivCarga;
@@ -611,6 +665,7 @@ function validarNombresDivision(nombreOrig, nombreNueva){
 
 // Renombrar la ruta original (queda registrado en el historial para poder deshacer)
 function renombrarRuta(viejo, nuevo){
+  if(colorAsignado[viejo]){ colorAsignado[nuevo] = colorAsignado[viejo]; persistirColores(); }
   const lote = [];
   clientes.forEach((c, i) => {
     if(c.ruta === viejo){ lote.push({i: i, de: viejo}); c.ruta = nuevo; pintar(i); }
@@ -925,10 +980,10 @@ function calcularOrden(){
     }
 
     ordenKm[r] = km / 1000;
-    capasOrden.push(
-      L.polyline([[DEPOT.lat, DEPOT.lon]].concat(secuencia),
-                 {color: colorDe(r), dashArray: "6 6", weight: 3, opacity: .75}).addTo(map)
-    );
+    const polilinea = L.polyline([[DEPOT.lat, DEPOT.lon]].concat(secuencia),
+                                 {color: colorDe(r), dashArray: "6 6", weight: 3, opacity: .75});
+    polilinea._ruta = r;
+    capasOrden.push(polilinea.addTo(map));
   });
 
   clientes.forEach(c => { if(c.ruta === null) delete c.orden; });
