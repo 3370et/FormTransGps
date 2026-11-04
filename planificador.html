@@ -39,7 +39,7 @@
     #estado.busy i{animation:girar 1s linear infinite}
     @keyframes girar{to{transform:rotate(360deg)}}
     #main{flex:1;display:flex;min-height:0}
-    #sidebar{width:720px;min-width:720px;background:#0e1018;border-right:1px solid #22273a;display:flex;flex-direction:column;height:100%;transition:transform .3s ease}
+    #sidebar{width:400px;min-width:400px;background:#0e1018;border-right:1px solid #22273a;display:flex;flex-direction:column;height:100%;transition:transform .3s ease}
     #sidebar.hidden{transform:translateX(-100%);min-width:0;width:0;overflow:hidden}
     @media(max-width:1100px){
       #sidebar{width:348px;min-width:348px}
@@ -69,12 +69,15 @@
     .sb-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;flex-shrink:0;white-space:nowrap}
     .bp{background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.2)}
     .bd{background:rgba(255,209,102,.1);color:#ffd166;border:1px solid rgba(255,209,102,.25)}
-    .sb-meta{font-size:10.5px;color:#565e74;margin-top:4px}
+    .sb-meta{font-size:10.5px;color:#565e74;margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .sb-meta-txt{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .sb-meta i{font-size:9.5px;margin:0 3px 0 0}
-    .sb-veh{margin-top:6px;display:flex;align-items:center;gap:6px;background:#0e1018;border:1px solid #22273a;border-radius:8px;padding:4px 7px}
-    .sb-veh:hover{border-color:#e8913a}
-    .veh-lbl{font-size:9px;font-weight:800;color:#e8913a;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;display:flex;align-items:center;gap:4px}
-    .veh-lbl i{font-size:10px}
+    .sb-top .veh-btn{flex:1 1 auto;min-width:0;background:#0e1018;border:1px solid #22273a;border-radius:7px;padding:3px 7px;transition:border-color .2s}
+    .sb-top .veh-btn:hover{border-color:#e8913a}
+    .sb-move{width:18px;height:18px;border-radius:6px;border:1px solid #22273a;background:#0e1018;color:#565e74;font-size:8px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+    .sb-move:hover{border-color:#e8913a;color:#e8913a}
+    .veh-pop.move-pop{width:min(330px,92vw)}
+    .mv-cli{font-size:12px;font-weight:700;color:#e4e8f1;padding:2px 9px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .veh-btn{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:6px;background:transparent;border:none;color:#e4e8f1;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;padding:2px 0;outline:none;text-align:left}
     .veh-btn:hover .veh-txt,.veh-btn:hover i{color:#e8913a}
     .veh-btn i{font-size:9px;color:#565e74;flex-shrink:0;transition:color .2s}
@@ -115,7 +118,7 @@
     .sb-color{width:20px;height:15px;padding:0;border:1px solid #333a52;border-radius:4px;background:none;cursor:pointer;flex-shrink:0}
     .sb-color::-webkit-color-swatch-wrapper{padding:0}
     .sb-color::-webkit-color-swatch{border:none;border-radius:3px}
-    .sb-top .sb-codigo{flex:1 1 auto;min-width:0}
+    .sb-top .sb-codigo{flex:0 1 auto;min-width:0}
     #map{flex:1;min-width:0;z-index:1}
     .leaflet-container{background:#08090d !important}
     #sbToggle{position:fixed;top:12px;left:12px;z-index:1100;width:36px;height:36px;border-radius:10px;border:1px solid #22273a;background:rgba(14,16,24,.92);backdrop-filter:blur(8px);color:#8891a8;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
@@ -177,6 +180,7 @@
   </div>
 
   <div id="vehPop" class="veh-pop"></div>
+  <div id="movePop" class="veh-pop move-pop"></div>
   <div id="alertasPop"><div class="ap-t">Observaciones del plan</div><div id="alertasBody"></div></div>
 
   <script>
@@ -609,7 +613,7 @@
       });
 
       return { ts: Date.now(), version: 'v3.6.1-3t-pp', capKg: CAP_KG, salidaEstimada: fmtMin(salidaMin),
-        diasHistorial: hist.length, deposito: dep,
+        diasHistorial: hist.length, deposito: dep, pares: stats.pares,
         fechaDespacho: fechaDespacho, picoPlaca: pp, alertas: alertas, planes: planes };
     }
 
@@ -684,6 +688,7 @@
       estado('Guardando...', true);
       esperarAuth().then(function() {
         var limpio = JSON.parse(JSON.stringify(planActual));
+        delete limpio.pares;
         limpio.planes.forEach(function(p){ delete p._color; delete p._clave; });
         return db.ref('rutas/' + planActual.fecha + '/plan').set(limpio);
       }).then(function(){ estado('Plan guardado en rutas/' + planActual.fecha + '/plan \u2713'); })
@@ -856,20 +861,21 @@
         html += '<div class="sb-plan" data-pi="' + pi + '">';
         html += '<div class="sb-bar" style="background:' + pl._color + '"></div>';
         html += '<div class="sb-content">';
-        html += '<div class="sb-top"><span class="sb-codigo" style="color:' + pl._color + '">' + esc(pl.transporte) + ' \u00b7 ' + esc(pl.ruta) + (pl.dedicado ? ' \u00b7 dedicado' : '') + (ppBad ? ' <span style="color:#f87171">\ud83d\udeabP&P</span>' : '') + '</span><span class="sb-badge ' + (pl.dedicado ? 'bd' : 'bp') + '">' + pl.utilizacion + '%' + (pl.viajes > 1 ? ' \u00b7 ' + pl.viajes + 'v' : '') + '</span>' +
-          '<input type="color" class="sb-color" data-pi="' + pi + '" value="' + pl._color + '" title="Elegir color de la ruta"></div>';
-        html += '<div class="sb-veh"><span class="veh-lbl"><i class="fa-solid fa-truck"></i>Camión</span>';
-        html += '<button type="button" class="veh-btn" data-pi="' + pi + '" title="Elegir transportista">';
-        html += vAct
-          ? '<span class="veh-txt">' + esc(vAct.cod) + ' ' + esc(vAct.nom) + ' \u00b7 ' + esc(vAct.placa) + '</span>'
-          : '<span class="veh-txt na">\u2014 sin asignar \u2014</span>';
-        html += '<i class="fa-solid fa-chevron-down"></i></button></div>';
-        html += '<div class="sb-meta"><i class="fa-solid fa-weight-hanging"></i>' + fmtKg(pl.pesoTotal) + ' kg &middot; <i class="fa-solid fa-location-dot"></i>' + pl.paradas + ' &middot; <i class="fa-solid fa-road"></i>' + pl.kmTotal + ' km &middot; <i class="fa-regular fa-clock"></i>fin ~' + pl.finEstimado + '</div>';
+        html += '<div class="sb-top"><span class="sb-codigo" style="color:' + pl._color + '">' + esc(pl.transporte) + ' \u00b7 ' + esc(pl.ruta) + (pl.dedicado ? ' \u00b7 dedicado' : '') + (ppBad ? ' <span style="color:#f87171">\ud83d\udeabP&P</span>' : '') + '</span>' +
+          '<button type="button" class="veh-btn" data-pi="' + pi + '" title="Transportista de ' + esc(pl.ruta) + ' \u2014 clic para elegir"><i class="fa-solid fa-truck"></i>' +
+          (vAct
+            ? '<span class="veh-txt">' + esc(vAct.nom) + ' \u00b7 ' + esc(vAct.placa) + '</span>'
+            : '<span class="veh-txt na">\u2014 sin asignar \u2014</span>') +
+          '<i class="fa-solid fa-chevron-down"></i></button></div>';
+        html += '<div class="sb-meta"><span class="sb-badge ' + (pl.dedicado ? 'bd' : 'bp') + '">' + pl.utilizacion + '%' + (pl.viajes > 1 ? ' \u00b7 ' + pl.viajes + 'v' : '') + '</span>' +
+          '<input type="color" class="sb-color" data-pi="' + pi + '" value="' + pl._color + '" title="Elegir color de la ruta">' +
+          '<span class="sb-meta-txt"><i class="fa-solid fa-weight-hanging"></i>' + fmtKg(pl.pesoTotal) + ' kg &middot; <i class="fa-solid fa-location-dot"></i>' + pl.paradas + ' &middot; <i class="fa-solid fa-road"></i>' + pl.kmTotal + ' km &middot; <i class="fa-regular fa-clock"></i>fin ~' + pl.finEstimado + '</span></div>';
         html += '<div class="sb-paradas">';
         pl.secuencia.forEach(function(d) {
           html += '<div class="sb-parada" data-key="' + pi + ':' + d.orden + '">';
           html += '<span class="sp-num" style="background:' + pl._color + '">' + d.orden + (d.viajes ? '*' : '') + '</span>';
-          html += '<div class="sp-body"><div class="sp-nombre">' + esc(d.clnt) + '</div><div class="sp-meta">ETA ' + d.etaTxt + (d.ventanaTxt ? ' \u00b7 ' + (d.fueraVentana ? '<span style="color:#f87171;font-weight:700">fuera vent</span>' : 'vent ' + d.ventanaTxt) : '') + (d.viajes ? ' \u00b7 ' + d.viajes + ' viajes' : '') + '</div></div></div>';
+          html += '<div class="sp-body"><div class="sp-nombre">' + esc(d.clnt) + '</div><div class="sp-meta">ETA ' + d.etaTxt + (d.ventanaTxt ? ' \u00b7 ' + (d.fueraVentana ? '<span style="color:#f87171;font-weight:700">fuera vent</span>' : 'vent ' + d.ventanaTxt) : '') + (d.viajes ? ' \u00b7 ' + d.viajes + ' viajes' : '') + '</div></div>' +
+            '<button type="button" class="sb-move" data-pi="' + pi + '" data-orden="' + d.orden + '" title="Cambiar esta parada a otra ruta"><i class="fa-solid fa-right-left"></i></button></div>';
         });
         html += '</div></div>';
         html += '<button class="sb-eye' + (ocultos[String(pi)] ? ' off' : '') + '" data-pi="' + pi + '" title="Mostrar/ocultar"><i class="fa-solid fa-' + (ocultos[String(pi)] ? 'eye-slash' : 'eye') + '"></i></button></div>';
@@ -879,6 +885,7 @@
 
     /* ================= PICKER DE CAMIÓN ================= */
     var popAbiertoPi = null;
+    var popMoveKey = null;
     function abrirVehPop(pi, btn) {
       if (!planActual) return;
       var pp = planActual.picoPlaca;
@@ -946,11 +953,13 @@
     }
     function cerrarPops() {
       document.getElementById('vehPop').style.display = 'none';
+      document.getElementById('movePop').style.display = 'none';
       document.getElementById('alertasPop').style.display = 'none';
       popAbiertoPi = null;
+      popMoveKey = null;
     }
     document.addEventListener('click', function(e) {
-      if (!e.target.closest('#vehPop') && !e.target.closest('.veh-btn') && !e.target.closest('#alertasPop') && !e.target.closest('#btnAlertas')) cerrarPops();
+      if (!e.target.closest('#vehPop') && !e.target.closest('.veh-btn') && !e.target.closest('#movePop') && !e.target.closest('.sb-move') && !e.target.closest('#alertasPop') && !e.target.closest('#btnAlertas')) cerrarPops();
     });
     document.addEventListener('keydown', function(e) { if (e.key === 'Escape') cerrarPops(); });
     window.addEventListener('resize', cerrarPops);
@@ -973,6 +982,15 @@
         }
         var cInp = e.target.closest('.sb-color');
         if (cInp) { e.stopPropagation(); cerrarPops(); return; }
+        var mv = e.target.closest('.sb-move');
+        if (mv) {
+          e.stopPropagation();
+          var mk = mv.getAttribute('data-pi') + ':' + mv.getAttribute('data-orden');
+          if (popMoveKey === mk) { cerrarPops(); return; }
+          cerrarPops();
+          abrirMovePop(+mv.getAttribute('data-pi'), +mv.getAttribute('data-orden'), mv);
+          return;
+        }
         var par = e.target.closest('.sb-parada');
         if (par) { e.stopPropagation(); focoParada(par.getAttribute('data-key')); return; }
         var pl = e.target.closest('.sb-plan');
@@ -983,6 +1001,13 @@
         if (!op || popAbiertoPi == null) return;
         e.stopPropagation();
         cambiarVehiculo(popAbiertoPi, op.getAttribute('data-cod'));
+      });
+      document.getElementById('movePop').addEventListener('click', function(e) {
+        var op = e.target.closest('.vop');
+        if (!op || popMoveKey == null) return;
+        e.stopPropagation();
+        var partes = popMoveKey.split(':');
+        moverCliente(+partes[0], +partes[1], +op.getAttribute('data-pid'));
       });
       el.addEventListener('input', function(e) {
         var ci = e.target.closest('.sb-color');
@@ -1035,6 +1060,105 @@
       cerrarPops();
       estado('Veh\u00edculo ' + v.cod + ' \u2192 ' + actual.ruta + (avisos.length ? ' (' + avisos.join(' \u00b7 ') + ')' : '') + (otro ? ' \u00b7 intercambi\u00f3 con ' + otro.ruta : ''), false, avisos.length > 0);
       renderSidebar(planActual);
+    }
+    /* ================= MOVER CLIENTE DE RUTA ================= */
+    function abrirMovePop(piO, orden, btn) {
+      if (!planActual) return;
+      var plO = planActual.planes[piO]; if (!plO) return;
+      var det = null;
+      plO.secuencia.forEach(function(d){ if (d.orden === orden) det = d; });
+      if (!det) return;
+      var otros = planActual.planes.filter(function(p){ return p !== plO; });
+      var pop = document.getElementById('movePop');
+      var html = '<div class="vop-sep">Mover parada</div>' +
+        '<div class="mv-cli">' + esc(det.clnt) + '</div>' +
+        '<div class="vop-sep" style="text-transform:none;letter-spacing:0">Ruta actual: ' + esc(plO.ruta) + (otros.length ? ' \u2014 elige destino:' : ' \u2014 no hay otra ruta en el plan') + '</div>';
+      otros.forEach(function(pl) {
+        html += '<button type="button" class="vop" data-pid="' + planActual.planes.indexOf(pl) + '">' +
+          '<div class="vop-n"><span class="vcod">' + esc(pl.ruta) + '</span>' + esc(pl.transporte || '') + '</div>' +
+          '<div class="vop-m"><span>' + pl.paradas + ' paradas</span><span>' + fmtKg(pl.pesoTotal) + ' kg</span><span>' + pl.kmTotal + ' km</span></div></button>';
+      });
+      pop.innerHTML = html;
+      pop.style.display = 'block';
+      popMoveKey = piO + ':' + orden;
+      var r = btn.getBoundingClientRect();
+      pop.style.left = '0px'; pop.style.top = '0px';
+      var ph = pop.offsetHeight, pw = pop.offsetWidth;
+      var left = Math.min(r.left, window.innerWidth - pw - 10);
+      var top = (r.bottom + ph + 10 < window.innerHeight) ? (r.bottom + 4) : Math.max(10, r.top - ph - 4);
+      pop.style.left = Math.max(8, left) + 'px';
+      pop.style.top = top + 'px';
+    }
+    function moverCliente(piO, orden, piD) {
+      if (!planActual) return;
+      var plO = planActual.planes[piO], plD = planActual.planes[piD];
+      if (!plO || !plD || piO === piD) return;
+      var idx = -1;
+      for (var i = 0; i < plO.secuencia.length; i++) if (plO.secuencia[i].orden === orden) { idx = i; break; }
+      if (idx < 0) return;
+      var det = plO.secuencia.splice(idx, 1)[0];
+      var nombreRutaO = plO.ruta, sacoRuta = plO.secuencia.length === 0;
+      if (sacoRuta) {
+        planActual.planes.splice(piO, 1);
+        if (piO < piD) piD--;
+        ocultos = {};
+      }
+      plD = planActual.planes[piD];
+      if (!plD) { cerrarPops(); renderPlan(planActual); renderSidebar(planActual); return; }
+      plD.secuencia.push(det);
+      recalcRuta(planActual, plD);
+      if (!sacoRuta) recalcRuta(planActual, plO);
+      cerrarPops();
+      renderPlan(planActual); renderSidebar(planActual);
+      var card = document.querySelector('.sb-plan[data-pi="' + piD + '"]');
+      if (card) card.classList.add('open');
+      estado(det.clnt + ' \u2192 ' + plD.ruta + (sacoRuta ? ' (' + nombreRutaO + ' qued\u00f3 vac\u00eda y se retir\u00f3)' : '') + ' \u00b7 km y horarios recalculados \u00b7 usa Guardar para persistir');
+    }
+    function recalcRuta(plan, pl) {
+      var dep = plan.deposito;
+      var salidaMin = hhmm2min(plan.salidaEstimada); if (!isFinite(salidaMin)) salidaMin = 8 * 60;
+      var pares = plan.pares || {};
+      var cap = pl.capKg || CAP_KG, viajes = pl.viajes || 1;
+      var items = pl.secuencia.map(function(d) {
+        var h = d.historial;
+        return { codc: d.codc, clnt: d.clnt, sector: d.sector || '', peso: (num(d.peso) || 0),
+          lat: num(d.lat), lon: num(d.lon), geoFallback: d.geoFallback || null,
+          _vent: ventana(d.ventanaTxt), _vFuente: d.ventanaFuente || '',
+          _aten: (h && h.atenPromMin != null) ? h.atenPromMin : PU.atenMinDef,
+          _viajes: d.viajes || null,
+          _hist: h ? { visitas: h.visitas, ordenProm: h.ordenProm, atenPromMin: h.atenPromMin, horaProm: h.horaProm, ventTxt: h.ventTxt || '' } : null };
+      });
+      var seq = optimizar(nnInicial(items, dep), pares, salidaMin, dep);
+      var eta = salidaMin, kmTot = 0, pesoT = 0, fuera = 0, det = [];
+      seq.forEach(function(c, i) {
+        var prev = i > 0 ? seq[i-1] : dep;
+        var dKm = prev ? havKm(prev, c) : 0;
+        kmTot += dKm; pesoT += c.peso; eta += dKm / PU.vKmH * 60;
+        var fueraV = c._vent ? (eta < c._vent[0] || eta > c._vent[1]) : false;
+        if (fueraV) fuera++;
+        det.push({
+          orden: i + 1, codc: c.codc, clnt: c.clnt, sector: c.sector,
+          peso: c.peso, lat: round6(c.lat), lon: round6(c.lon),
+          etaTxt: fmtMin(eta), kmDesdeAnterior: Math.round(dKm * 10) / 10,
+          ventanaTxt: c._vent ? fmtMin(c._vent[0]) + '-' + fmtMin(c._vent[1]) : '',
+          ventanaFuente: c._vFuente || '', fueraVentana: fueraV,
+          viajes: c._viajes || null, geoFallback: c.geoFallback || null, historial: c._hist
+        });
+        eta += c._aten;
+      });
+      pl.secuencia = det;
+      pl.pesoTotal = pesoT;
+      pl.paradas = det.length;
+      pl.kmTotal = Math.round(kmTot * 10) / 10;
+      pl.finEstimado = fmtMin(eta);
+      pl.utilizacion = Math.min(100, Math.round(pesoT / (cap * viajes) * 100));
+      var pref = pl.ruta + ':';
+      plan.alertas = (plan.alertas || []).filter(function(a) { return String(a).indexOf(pref) !== 0; });
+      if (fuera > 0) plan.alertas.push(pl.ruta + ': ' + fuera + ' parada(s) fuera de ventana estimada');
+      if (pl.dedicado && det.length && det[0].viajes)
+        plan.alertas.push(pl.ruta + ': ' + det[0].clnt + ' (' + fmtKg(det[0].peso) + ' kg) excede ' + fmtKg(CAP_KG) + ' kg \u2192 veh\u00edculo dedicado, ' + det[0].viajes + ' viajes al mismo punto');
+      if (!pl.dedicado && pesoT > cap * viajes)
+        plan.alertas.push(pl.ruta + ': excede la capacidad del cami\u00f3n (' + fmtKg(pesoT) + ' kg / ' + fmtKg(cap * viajes) + ' kg)');
     }
     function focoParada(key) {
       var m = mkIndex[key];
