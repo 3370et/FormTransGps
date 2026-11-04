@@ -145,6 +145,26 @@
     .pp-move:hover{border-color:#e8913a;color:#e8913a}
     .pp-move i{font-size:9px;color:#565e74;transition:color .15s}
     .pp-move:hover i{color:#e8913a}
+    .pp-copy{font-family:'Space Grotesk',monospace;font-size:10.5px;color:#cdd5e4;background:#0e1018;border:1px solid #2a3145;border-radius:6px;padding:3px 7px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s;text-align:left}
+    .pp-copy:hover{border-color:#e8913a;color:#e8913a}
+    .pp-copy i{font-size:8.5px;color:#565e74}
+    .pp-copy:hover i{color:#e8913a}
+    .pp-copy.ok{border-color:#34d399 !important;color:#34d399 !important}
+    .pp-copy.ok i{color:#34d399 !important}
+    .pp-mini{font-size:9.5px;padding:2px 5px;color:#8891a8}
+    .pp-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+    .pp-ct{display:block;font-size:8.5px;color:#565e74;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+    .sp-sel{width:13px;height:13px;margin:0;accent-color:#e8913a;cursor:pointer;flex-shrink:0}
+    #selBar{position:fixed;left:12px;bottom:12px;z-index:1250;display:none;align-items:center;gap:8px;background:rgba(14,16,24,.97);border:1px solid #e8913a;border-radius:10px;padding:7px 8px 7px 12px;box-shadow:0 8px 28px rgba(0,0,0,.55)}
+    #selBar.on{display:flex}
+    #selTxt{font-size:11px;font-weight:700;color:#e4e8f1;white-space:nowrap}
+    #btnSelMover{display:flex;align-items:center;gap:6px;background:#e8913a;border:none;border-radius:8px;color:#0b0d12;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:800;padding:6px 10px;cursor:pointer;transition:filter .15s}
+    #btnSelMover:hover{filter:brightness(1.12)}
+    #btnSelLimpiar{width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:none;border:1px solid #333a52;border-radius:8px;color:#8891a8;font-size:11px;cursor:pointer;transition:all .15s}
+    #btnSelLimpiar:hover{border-color:#f87171;color:#f87171}
+    #coordPop{max-width:250px}
+    #coordPop .cp-vals{display:flex;flex-direction:column;gap:4px;padding:2px 9px 9px}
+    #coordPop .pp-copy span{color:#565e74;font-family:'DM Sans',sans-serif;font-size:9px;font-weight:700}
     @media(max-width:768px){
       #sidebar{position:fixed;left:0;top:0;height:100vh;z-index:1150;box-shadow:8px 0 32px rgba(0,0,0,.5);width:100vw;min-width:100vw}
       #sidebar.hidden{transform:translateX(-100%)}
@@ -186,10 +206,16 @@
   <div id="vehPop" class="veh-pop"></div>
   <div id="movePop" class="veh-pop move-pop"></div>
   <div id="alertasPop"><div class="ap-t">Observaciones del plan</div><div id="alertasBody"></div></div>
+  <div id="coordPop" class="veh-pop" style="display:none"></div>
+  <div id="selBar">
+    <span id="selTxt">0 paradas seleccionadas</span>
+    <button type="button" id="btnSelMover"><i class="fa-solid fa-right-left"></i> Mover a&hellip;</button>
+    <button type="button" id="btnSelLimpiar" title="Deseleccionar todas"><i class="fa-solid fa-xmark"></i></button>
+  </div>
 
   <script>
     /* =====================================================================
-       PLANIFICADOR DE ENTREGAS v3.6.1
+       PLANIFICADOR DE ENTREGAS v3.6.1 + v6 (multi-mover, coords, copiar)
        Modelo de fechas: rutas/{D} se carga la víspera; despacho y P&P = D+1.
        Historial: capturas <= D. Plan guardado con fechaDespacho.
        ★ v3.6.1 FIX "Invalid LatLng (NaN,NaN)":
@@ -266,6 +292,31 @@
 
     /* ================= UTILIDADES ================= */
     function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+    function copiarTxt(txt, btn) {
+      var t = String(txt == null ? '' : txt);
+      var okFn = function() {
+        if (btn) { btn.classList.add('ok'); setTimeout(function(){ btn.classList.remove('ok'); }, 1400); }
+        estado('Copiado: ' + t);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText)
+        navigator.clipboard.writeText(t).then(okFn, function(){ copiarFallback(t, btn, okFn); });
+      else copiarFallback(t, btn, okFn);
+    }
+    function copiarFallback(t, btn, okFn) {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = t;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) okFn();
+        else estado('No se pudo copiar autom\u00e1ticamente \u2014 selecciona el texto y usa Ctrl+C', false, true);
+      } catch (e) { estado('No se pudo copiar autom\u00e1ticamente \u2014 selecciona el texto y usa Ctrl+C', false, true); }
+    }
     /* ★ v3.6.1: coerción numérica segura — "−0.2" → −0.2, "abc"/null/objeto → NaN.
        NaN nunca pasa isFinite, así que cae a fallback/exclusión en vez de
        contaminar sumas (la causa del Invalid LatLng) */
@@ -761,6 +812,24 @@
         maxNativeZoom: 16, maxZoom: 19
       }).addTo(map);
       map.on('zoomend', function(){ document.body.classList.toggle('zoom-lejos', map.getZoom() < 13); });
+      map.doubleClickZoom.disable();
+      map.on('dblclick', function(e) {
+        var la = round6(e.latlng.lat), lo = round6(e.latlng.lng);
+        var pop = document.getElementById('coordPop');
+        pop.innerHTML = '<div class="vop-sep">Coordenadas del punto \u2014 clic para copiar</div>' +
+          '<div class="cp-vals">' +
+          '<button type="button" class="pp-copy" data-v="' + la + '"><span>lat</span>' + la + '</button>' +
+          '<button type="button" class="pp-copy" data-v="' + lo + '"><span>lng</span>' + lo + '</button>' +
+          '<button type="button" class="pp-copy" data-v="' + la + ', ' + lo + '"><span>ambas</span>' + la + ', ' + lo + '</button>' +
+          '</div>';
+        var pt = map.latLngToContainerPoint(e.latlng);
+        var rect = map.getContainer().getBoundingClientRect();
+        cerrarPops();
+        pop.style.display = 'block';
+        var pw = pop.offsetWidth, phh = pop.offsetHeight;
+        pop.style.left = Math.max(8, Math.min(rect.left + pt.x + 14, window.innerWidth - pw - 10)) + 'px';
+        pop.style.top = Math.max(8, Math.min(rect.top + pt.y - phh / 2, window.innerHeight - phh - 10)) + 'px';
+      });
       if (!etiquetasOn) { document.body.classList.add('sin-etiquetas'); document.getElementById('btnEtiquetas').classList.remove('on'); }
       if (!lineasOn) document.getElementById('btnLineas').classList.remove('on');
       bindList();
@@ -771,6 +840,8 @@
       plan.fecha = fecha;
       planActual = plan;
       cerrarPops();
+      selParadas = {};
+      actualizarSelUI();
       renderPlan(plan); renderSidebar(plan);
       document.title = 'Plan ' + fecha + ' \u00b7 Planificador';
       actualizarChipPP();
@@ -786,6 +857,7 @@
       var ph = '<div class="pp">';
       ph += '<div class="pp-num">Parada ' + d.orden + ' \u00b7 ' + esc(pl.ruta) + '</div>';
       ph += '<div class="pp-nombre" style="color:' + col + '">' + esc(d.clnt) + '</div>';
+      ph += '<div class="pp-row"><i class="fa-solid fa-hashtag"></i><button type="button" class="pp-copy" data-v="' + esc(d.codc) + '" title="Clic para copiar el c\u00f3digo del cliente">' + esc(d.codc || '\u2014') + ' <i class="fa-regular fa-copy"></i></button></div>';
       ph += '<div class="pp-row"><i class="fa-solid fa-truck"></i>Veh\u00edculo ' + esc(pl.transporte) + (pl.placa ? ' \u00b7 ' + esc(pl.placa) : '') + (pl.conductor ? ' \u00b7 ' + esc(pl.conductor) : '') + '</div>';
       ph += '<div class="pp-row"><i class="fa-solid fa-tag"></i>' + esc(d.sector || '\u2014') + '</div>';
       ph += '<div class="pp-row"><i class="fa-solid fa-weight-hanging"></i>' + fmtKg(d.peso) + ' kg</div>';
@@ -798,7 +870,11 @@
       }
       if (d.geoFallback) ph += '<div class="pp-row"><i class="fa-solid fa-triangle-exclamation" style="color:#ffd166"></i><span style="color:#ffd166;font-weight:700">Coordenada: ' + esc(d.geoFallback) + '</span></div>';
       ph += '<button type="button" class="pp-move" data-pi="' + pi + '" data-orden="' + d.orden + '" title="Cambiar esta parada a otra ruta"><i class="fa-solid fa-right-left"></i> Mover a otra ruta</button>';
-      ph += '<div class="pp-coord">' + d.lat + ', ' + d.lon + '</div></div>';
+      ph += '<div class="pp-coord"><span class="pp-ct">Coordenadas \u2014 clic para copiar</span><span class="pp-chips">' +
+        '<button type="button" class="pp-copy" data-v="' + d.lat + ', ' + d.lon + '" title="Clic para copiar ambas coordenadas">' + d.lat + ', ' + d.lon + ' <i class="fa-regular fa-copy"></i></button>' +
+        '<button type="button" class="pp-copy pp-mini" data-v="' + d.lat + '" title="Clic para copiar solo la latitud">' + d.lat + '</button>' +
+        '<button type="button" class="pp-copy pp-mini" data-v="' + d.lon + '" title="Clic para copiar solo la longitud">' + d.lon + '</button>' +
+        '</span></div></div>';
       return ph;
     }
 
@@ -878,6 +954,7 @@
         html += '<div class="sb-paradas">';
         pl.secuencia.forEach(function(d) {
           html += '<div class="sb-parada" data-key="' + pi + ':' + d.orden + '">';
+          html += '<input type="checkbox" class="sp-sel" data-key="' + pi + ':' + d.orden + '"' + (selParadas[pi + ':' + d.orden] ? ' checked' : '') + ' title="Seleccionar para mover varias a la vez">';
           html += '<span class="sp-num" style="background:' + pl._color + '">' + d.orden + (d.viajes ? '*' : '') + '</span>';
           html += '<div class="sp-body"><div class="sp-nombre">' + esc(d.clnt) + '</div><div class="sp-meta">ETA ' + d.etaTxt + (d.ventanaTxt ? ' \u00b7 ' + (d.fueraVentana ? '<span style="color:#f87171;font-weight:700">fuera vent</span>' : 'vent ' + d.ventanaTxt) : '') + (d.viajes ? ' \u00b7 ' + d.viajes + ' viajes' : '') + '</div></div>' +
             '<button type="button" class="sb-move" data-pi="' + pi + '" data-orden="' + d.orden + '" title="Cambiar esta parada a otra ruta"><i class="fa-solid fa-right-left"></i></button></div>';
@@ -891,6 +968,7 @@
     /* ================= PICKER DE CAMIÓN ================= */
     var popAbiertoPi = null;
     var popMoveKey = null;
+    var selParadas = {};
     function abrirVehPop(pi, btn) {
       if (!planActual) return;
       var pp = planActual.picoPlaca;
@@ -960,6 +1038,7 @@
       document.getElementById('vehPop').style.display = 'none';
       document.getElementById('movePop').style.display = 'none';
       document.getElementById('alertasPop').style.display = 'none';
+      document.getElementById('coordPop').style.display = 'none';
       popAbiertoPi = null;
       popMoveKey = null;
     }
@@ -968,6 +1047,13 @@
     });
     /* ⇄ desde el popup del mapa (captura: Leaflet puede frenar la propagación) */
     document.addEventListener('click', function(e) {
+      var cp = e.target.closest ? e.target.closest('.pp-copy') : null;
+      if (cp) {
+        e.preventDefault();
+        e.stopPropagation();
+        copiarTxt(cp.getAttribute('data-v'), cp);
+        return;
+      }
       var pm = e.target.closest ? e.target.closest('.pp-move') : null;
       if (!pm) return;
       cerrarPops();
@@ -981,6 +1067,16 @@
     function bindList() {
       var el = document.getElementById('sbList');
       el.addEventListener('scroll', cerrarPops);
+      document.getElementById('btnSelMover').addEventListener('click', function(e) {
+        e.stopPropagation();
+        cerrarPops();
+        abrirMovePopSel(this);
+      });
+      document.getElementById('btnSelLimpiar').addEventListener('click', function(e) {
+        e.stopPropagation();
+        limpiarSel();
+        estado('Selecci\u00f3n limpiada');
+      });
       el.addEventListener('click', function(e) {
         var eye = e.target.closest('.sb-eye');
         if (eye) { e.stopPropagation(); cerrarPops(); togVis(eye.getAttribute('data-pi'), eye); return; }
@@ -1004,6 +1100,14 @@
           abrirMovePop(+mv.getAttribute('data-pi'), +mv.getAttribute('data-orden'), mv);
           return;
         }
+        var sel = e.target.closest('.sp-sel');
+        if (sel) {
+          e.stopPropagation();
+          var sk = sel.getAttribute('data-key');
+          if (sel.checked) selParadas[sk] = true; else delete selParadas[sk];
+          actualizarSelUI();
+          return;
+        }
         var par = e.target.closest('.sb-parada');
         if (par) { e.stopPropagation(); focoParada(par.getAttribute('data-key')); return; }
         var pl = e.target.closest('.sb-plan');
@@ -1019,6 +1123,7 @@
         var op = e.target.closest('.vop');
         if (!op || popMoveKey == null) return;
         e.stopPropagation();
+        if (popMoveKey === '__sel__') { moverVarios(op.getAttribute('data-pid')); return; }
         var partes = popMoveKey.split(':');
         moverCliente(+partes[0], +partes[1], op.getAttribute('data-pid'));
       });
@@ -1139,10 +1244,113 @@
       recalcRuta(planActual, plD);
       if (!sacoRuta) recalcRuta(planActual, plO);
       cerrarPops();
+      limpiarSel();
       renderPlan(planActual); renderSidebar(planActual);
       var card = document.querySelector('.sb-plan[data-pi="' + planActual.planes.indexOf(plD) + '"]');
       if (card) card.classList.add('open');
       estado(det.clnt + ' \u2192 ' + plD.ruta + (sacoRuta ? ' (' + plO.ruta + ' qued\u00f3 vac\u00eda y se retir\u00f3)' : '') + ' \u00b7 km y horarios recalculados \u00b7 usa Guardar para persistir');
+    }
+    function actualizarSelUI() {
+      var n = Object.keys(selParadas).length;
+      var bar = document.getElementById('selBar');
+      if (n > 0) {
+        document.getElementById('selTxt').textContent = n + ' parada' + (n === 1 ? '' : 's') + ' seleccionada' + (n === 1 ? '' : 's');
+        bar.classList.add('on');
+      } else bar.classList.remove('on');
+    }
+    function limpiarSel() {
+      selParadas = {};
+      document.querySelectorAll('.sp-sel').forEach(function(c){ c.checked = false; });
+      actualizarSelUI();
+    }
+    function abrirMovePopSel(btn) {
+      if (!planActual) return;
+      var claves = Object.keys(selParadas);
+      if (!claves.length) return;
+      var nombres = [];
+      claves.forEach(function(k) {
+        var pr = k.split(':'), plO = planActual.planes[+pr[0]];
+        if (!plO) return;
+        plO.secuencia.forEach(function(d){ if (d.orden === +pr[1]) nombres.push(d.clnt); });
+      });
+      if (!nombres.length) { limpiarSel(); return; }
+      var pop = document.getElementById('movePop');
+      var html = '<div class="vop-sep">Mover ' + claves.length + ' paradas a la vez</div>' +
+        '<div class="mv-cli">' + esc(nombres.slice(0, 3).join(' \u00b7 ')) + (nombres.length > 3 ? ' \u2026' : '') + '</div>' +
+        '<div class="vop-sep" style="text-transform:none;letter-spacing:0">Elige la ruta de destino:</div>';
+      planActual.planes.forEach(function(pl) {
+        html += '<button type="button" class="vop" data-pid="' + planActual.planes.indexOf(pl) + '">' +
+          '<div class="vop-n"><span class="vcod">' + esc(pl.ruta) + '</span>' + esc(pl.transporte || '') + '</div>' +
+          '<div class="vop-m"><span>' + pl.paradas + ' paradas</span><span>' + fmtKg(pl.pesoTotal) + ' kg</span><span>' + pl.kmTotal + ' km</span></div></button>';
+      });
+      html += '<div class="vop-sep">o crear una ruta nueva</div>' +
+        '<button type="button" class="vop" data-pid="__nueva__"><div class="vop-n"><i class="fa-solid fa-plus" style="color:#e8913a"></i> Crear nueva ruta\u2026</div><div class="vop-m">Pide el nombre y mueve all\u00ed las ' + claves.length + ' paradas</div></button>';
+      pop.innerHTML = html;
+      pop.style.display = 'block';
+      popMoveKey = '__sel__';
+      var r = btn.getBoundingClientRect();
+      pop.style.left = '0px'; pop.style.top = '0px';
+      var ph = pop.offsetHeight, pw = pop.offsetWidth;
+      var left = Math.min(r.left, window.innerWidth - pw - 10);
+      var top = (r.bottom + ph + 10 < window.innerHeight) ? (r.bottom + 4) : Math.max(10, r.top - ph - 4);
+      pop.style.left = Math.max(8, left) + 'px';
+      pop.style.top = top + 'px';
+    }
+    function moverVarios(piD) {
+      if (!planActual) return;
+      var claves = Object.keys(selParadas);
+      if (!claves.length) return;
+      var plD = null;
+      if (piD === '__nueva__') {
+        cerrarPops();
+        var nombre = (prompt('Nombre de la nueva ruta para las ' + claves.length + ' paradas seleccionadas:', 'NUEVA RUTA') || '').trim();
+        if (!nombre) return;
+        if (planActual.planes.some(function(p){ return p.ruta.toUpperCase() === nombre.toUpperCase(); })) {
+          estado('Ya existe una ruta "' + nombre + '" en el plan \u2014 elige esa o usa otro nombre', false, true);
+          return;
+        }
+        plD = { clave: nombre + '|T1', ruta: nombre, transporte: 'T' + (planActual.planes.length + 1),
+          conductor: null, placa: null, dedicado: false, viajes: 1,
+          pesoTotal: 0, capKg: CAP_KG, utilizacion: 0, kmTotal: 0,
+          finEstimado: planActual.salidaEstimada, paradas: 0, secuencia: [] };
+        planActual.planes.push(plD);
+      } else {
+        plD = planActual.planes[+piD];
+      }
+      if (!plD) { limpiarSel(); return; }
+      var porPi = {};
+      claves.forEach(function(k) {
+        var pr = k.split(':'), pi = +pr[0], ord = +pr[1];
+        (porPi[pi] = porPi[pi] || []).push(ord);
+      });
+      var movidas = [], afectadas = [], quito = [];
+      Object.keys(porPi).forEach(function(k) {
+        var plO = planActual.planes[+k];
+        if (!plO || plO === plD) return;
+        porPi[k].sort(function(a, b){ return b - a; }).forEach(function(ord) {
+          var det = null;
+          for (var i = 0; i < plO.secuencia.length; i++) if (plO.secuencia[i].orden === ord) { det = plO.secuencia.splice(i, 1)[0]; break; }
+          if (det) { movidas.push(det); if (afectadas.indexOf(plO) < 0) afectadas.push(plO); }
+        });
+      });
+      if (!movidas.length) {
+        limpiarSel();
+        estado('Las paradas seleccionadas ya pertenecen a esa ruta', false, true);
+        return;
+      }
+      for (var i = planActual.planes.length - 1; i >= 0; i--) {
+        var plV = planActual.planes[i];
+        if (plV !== plD && plV.secuencia.length === 0) { quito.push(plV.ruta); planActual.planes.splice(i, 1); ocultos = {}; }
+      }
+      movidas.forEach(function(d){ plD.secuencia.push(d); });
+      recalcRuta(planActual, plD);
+      afectadas.forEach(function(pl) { if (planActual.planes.indexOf(pl) >= 0) recalcRuta(planActual, pl); });
+      cerrarPops();
+      limpiarSel();
+      renderPlan(planActual); renderSidebar(planActual);
+      var card = document.querySelector('.sb-plan[data-pi="' + planActual.planes.indexOf(plD) + '"]');
+      if (card) card.classList.add('open');
+      estado(movidas.length + ' parada(s) \u2192 ' + plD.ruta + (quito.length ? ' (' + quito.join(', ') + ' qued\u00f3 vac\u00eda y se retir\u00f3)' : '') + ' \u00b7 km y horarios recalculados \u00b7 usa Guardar para persistir');
     }
     function recalcRuta(plan, pl) {
       var dep = plan.deposito;
