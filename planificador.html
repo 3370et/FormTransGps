@@ -141,6 +141,10 @@
     .pp-row{display:flex;align-items:center;gap:5px;font-size:11px;color:#8891a8;margin-bottom:2px;flex-wrap:wrap}
     .pp-row i{width:13px;text-align:center;font-size:9px;color:#565e74;flex-shrink:0}
     .pp-coord{font-family:'Space Grotesk',monospace;font-size:10px;color:#565e74;margin-top:5px;padding-top:5px;border-top:1px solid #22273a}
+    .pp-move{margin-top:8px;width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:#0e1018;border:1px solid #22273a;border-radius:8px;color:#e4e8f1;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;padding:6px;cursor:pointer;transition:all .15s}
+    .pp-move:hover{border-color:#e8913a;color:#e8913a}
+    .pp-move i{font-size:9px;color:#565e74;transition:color .15s}
+    .pp-move:hover i{color:#e8913a}
     @media(max-width:768px){
       #sidebar{position:fixed;left:0;top:0;height:100vh;z-index:1150;box-shadow:8px 0 32px rgba(0,0,0,.5);width:100vw;min-width:100vw}
       #sidebar.hidden{transform:translateX(-100%)}
@@ -778,7 +782,7 @@
       estado('Despacho ' + plan.fechaDespacho + ': ' + totV + ' veh\u00edculo(s), ' + totC + ' paradas, ' + fmtKg(totKg) + ' kg, ' + totKm + ' km' + (hist.length ? ' \u00b7 historial ' + hist.length + ' d\u00edas' : ' \u00b7 sin historial'));
     }
 
-    function popupCliente(pl, d, prev, col) {
+    function popupCliente(pl, pi, d, prev, col) {
       var ph = '<div class="pp">';
       ph += '<div class="pp-num">Parada ' + d.orden + ' \u00b7 ' + esc(pl.ruta) + '</div>';
       ph += '<div class="pp-nombre" style="color:' + col + '">' + esc(d.clnt) + '</div>';
@@ -793,6 +797,7 @@
         if (d.historial.horaProm) ph += '<div class="pp-row"><i class="fa-regular fa-calendar"></i>Llegada t\u00edpica ~' + d.historial.horaProm + '</div>';
       }
       if (d.geoFallback) ph += '<div class="pp-row"><i class="fa-solid fa-triangle-exclamation" style="color:#ffd166"></i><span style="color:#ffd166;font-weight:700">Coordenada: ' + esc(d.geoFallback) + '</span></div>';
+      ph += '<button type="button" class="pp-move" data-pi="' + pi + '" data-orden="' + d.orden + '" title="Cambiar esta parada a otra ruta"><i class="fa-solid fa-right-left"></i> Mover a otra ruta</button>';
       ph += '<div class="pp-coord">' + d.lat + ', ' + d.lon + '</div></div>';
       return ph;
     }
@@ -820,7 +825,7 @@
           rutaPts.push([d.lat, d.lon]);
           var icon = L.divIcon({ className:'mk', html:'<div class="mk-dot" style="background:' + col + '">' + d.orden + (d.viajes ? '*' : '') + '</div>', iconSize:[28,28], iconAnchor:[14,14], popupAnchor:[0,-16] });
           var m = L.marker([d.lat, d.lon], { icon: icon });
-          m.bindPopup(popupCliente(pl, d, di > 0 ? secuencia[di-1] : plan.deposito, col), { maxWidth: 280 });
+          m.bindPopup(popupCliente(pl, pi, d, di > 0 ? secuencia[di-1] : plan.deposito, col), { maxWidth: 280 });
           if (d.sector) m.bindTooltip(esc(d.sector), { permanent:true, direction:'right', offset:[13,0], className:'lbl-sector', opacity:1 });
           m.addTo(g);
           mkIndex[pi + ':' + d.orden] = m;
@@ -959,8 +964,16 @@
       popMoveKey = null;
     }
     document.addEventListener('click', function(e) {
-      if (!e.target.closest('#vehPop') && !e.target.closest('.veh-btn') && !e.target.closest('#movePop') && !e.target.closest('.sb-move') && !e.target.closest('#alertasPop') && !e.target.closest('#btnAlertas')) cerrarPops();
+      if (!e.target.closest('#vehPop') && !e.target.closest('.veh-btn') && !e.target.closest('#movePop') && !e.target.closest('.sb-move') && !e.target.closest('.pp-move') && !e.target.closest('#alertasPop') && !e.target.closest('#btnAlertas')) cerrarPops();
     });
+    /* ⇄ desde el popup del mapa (captura: Leaflet puede frenar la propagación) */
+    document.addEventListener('click', function(e) {
+      var pm = e.target.closest ? e.target.closest('.pp-move') : null;
+      if (!pm) return;
+      cerrarPops();
+      abrirMovePop(+pm.getAttribute('data-pi'), +pm.getAttribute('data-orden'), pm);
+      if (map) map.closePopup();
+    }, true);
     document.addEventListener('keydown', function(e) { if (e.key === 'Escape') cerrarPops(); });
     window.addEventListener('resize', cerrarPops);
 
@@ -1007,7 +1020,7 @@
         if (!op || popMoveKey == null) return;
         e.stopPropagation();
         var partes = popMoveKey.split(':');
-        moverCliente(+partes[0], +partes[1], +op.getAttribute('data-pid'));
+        moverCliente(+partes[0], +partes[1], op.getAttribute('data-pid'));
       });
       el.addEventListener('input', function(e) {
         var ci = e.target.closest('.sb-color');
@@ -1072,12 +1085,14 @@
       var pop = document.getElementById('movePop');
       var html = '<div class="vop-sep">Mover parada</div>' +
         '<div class="mv-cli">' + esc(det.clnt) + '</div>' +
-        '<div class="vop-sep" style="text-transform:none;letter-spacing:0">Ruta actual: ' + esc(plO.ruta) + (otros.length ? ' \u2014 elige destino:' : ' \u2014 no hay otra ruta en el plan') + '</div>';
+        '<div class="vop-sep" style="text-transform:none;letter-spacing:0">Ruta actual: ' + esc(plO.ruta) + (otros.length ? ' \u2014 elige destino:' : ' \u2014 no hay otras rutas, crea una:') + '</div>';
       otros.forEach(function(pl) {
         html += '<button type="button" class="vop" data-pid="' + planActual.planes.indexOf(pl) + '">' +
           '<div class="vop-n"><span class="vcod">' + esc(pl.ruta) + '</span>' + esc(pl.transporte || '') + '</div>' +
           '<div class="vop-m"><span>' + pl.paradas + ' paradas</span><span>' + fmtKg(pl.pesoTotal) + ' kg</span><span>' + pl.kmTotal + ' km</span></div></button>';
       });
+      html += '<div class="vop-sep">o crear una ruta nueva</div>' +
+        '<button type="button" class="vop" data-pid="__nueva__"><div class="vop-n"><i class="fa-solid fa-plus" style="color:#e8913a"></i> Crear nueva ruta\u2026</div><div class="vop-m">Pide el nombre y mueve la parada ah\u00ed</div></button>';
       pop.innerHTML = html;
       pop.style.display = 'block';
       popMoveKey = piO + ':' + orden;
@@ -1091,28 +1106,43 @@
     }
     function moverCliente(piO, orden, piD) {
       if (!planActual) return;
-      var plO = planActual.planes[piO], plD = planActual.planes[piD];
-      if (!plO || !plD || piO === piD) return;
+      var plO = planActual.planes[piO];
+      if (!plO) return;
+      var plD = null;
+      if (piD === '__nueva__') {
+        cerrarPops();
+        var nombre = (prompt('Nombre de la nueva ruta para esta parada:', 'NUEVA RUTA') || '').trim();
+        if (!nombre) return;
+        if (planActual.planes.some(function(p){ return p.ruta.toUpperCase() === nombre.toUpperCase(); })) {
+          estado('Ya existe una ruta "' + nombre + '" en el plan \u2014 elige esa o usa otro nombre', false, true);
+          return;
+        }
+        plD = { clave: nombre + '|T1', ruta: nombre, transporte: 'T' + (planActual.planes.length + 1),
+          conductor: null, placa: null, dedicado: false, viajes: 1,
+          pesoTotal: 0, capKg: CAP_KG, utilizacion: 0, kmTotal: 0,
+          finEstimado: planActual.salidaEstimada, paradas: 0, secuencia: [] };
+        planActual.planes.push(plD);
+      } else {
+        plD = planActual.planes[piD];
+      }
+      if (!plD || plD === plO) return;
       var idx = -1;
       for (var i = 0; i < plO.secuencia.length; i++) if (plO.secuencia[i].orden === orden) { idx = i; break; }
       if (idx < 0) return;
       var det = plO.secuencia.splice(idx, 1)[0];
-      var nombreRutaO = plO.ruta, sacoRuta = plO.secuencia.length === 0;
+      var sacoRuta = plO.secuencia.length === 0;
       if (sacoRuta) {
-        planActual.planes.splice(piO, 1);
-        if (piO < piD) piD--;
+        planActual.planes.splice(planActual.planes.indexOf(plO), 1);
         ocultos = {};
       }
-      plD = planActual.planes[piD];
-      if (!plD) { cerrarPops(); renderPlan(planActual); renderSidebar(planActual); return; }
       plD.secuencia.push(det);
       recalcRuta(planActual, plD);
       if (!sacoRuta) recalcRuta(planActual, plO);
       cerrarPops();
       renderPlan(planActual); renderSidebar(planActual);
-      var card = document.querySelector('.sb-plan[data-pi="' + piD + '"]');
+      var card = document.querySelector('.sb-plan[data-pi="' + planActual.planes.indexOf(plD) + '"]');
       if (card) card.classList.add('open');
-      estado(det.clnt + ' \u2192 ' + plD.ruta + (sacoRuta ? ' (' + nombreRutaO + ' qued\u00f3 vac\u00eda y se retir\u00f3)' : '') + ' \u00b7 km y horarios recalculados \u00b7 usa Guardar para persistir');
+      estado(det.clnt + ' \u2192 ' + plD.ruta + (sacoRuta ? ' (' + plO.ruta + ' qued\u00f3 vac\u00eda y se retir\u00f3)' : '') + ' \u00b7 km y horarios recalculados \u00b7 usa Guardar para persistir');
     }
     function recalcRuta(plan, pl) {
       var dep = plan.deposito;
@@ -1231,7 +1261,7 @@
       (pl.secuencia || []).forEach(function(d, di) {
         var m = mkIndex[pi + ':' + d.orden]; if (!m) return;
         m.setIcon(L.divIcon({ className: 'mk', html: '<div class="mk-dot" style="background:' + col + '">' + d.orden + (d.viajes ? '*' : '') + '</div>', iconSize: [28,28], iconAnchor: [14,14], popupAnchor: [0,-16] }));
-        m.setPopupContent(popupCliente(pl, d, di > 0 ? pl.secuencia[di-1] : planActual.deposito, col));
+        m.setPopupContent(popupCliente(pl, pi, d, di > 0 ? pl.secuencia[di-1] : planActual.deposito, col));
       });
     }
     function toggleEtiquetas() {
