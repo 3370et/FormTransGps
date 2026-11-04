@@ -159,6 +159,36 @@
     .pp-copy:hover i{color:#e8913a}
     .pp-copy.ok{border-color:#34d399 !important;color:#34d399 !important}
     .pp-copy.ok i{color:#34d399 !important}
+    /* ★ v8: modal de configuración de transportistas */
+    #cfgWrap{position:fixed;inset:0;z-index:5000;display:none;align-items:center;justify-content:center;background:rgba(4,6,10,.62);backdrop-filter:blur(3px)}
+    #cfgPop{width:min(780px,94vw);max-height:86vh;display:flex;flex-direction:column;background:#10131b;border:1px solid #22273a;border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.65);overflow:hidden}
+    .cfg-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px;font-size:15px;font-weight:800;color:#e4e8f1}
+    .cfg-head i{color:#e8913a;margin-right:4px}
+    .cfg-x{background:none;border:none;color:#565e74;font-size:15px;cursor:pointer;padding:4px 7px;border-radius:6px;transition:all .15s}
+    .cfg-x:hover{color:#f87171;background:#191d28}
+    .cfg-sub{padding:0 16px 10px;font-size:10.5px;color:#565e74;line-height:1.4}
+    .cfg-cols,.cfg-row{display:grid;grid-template-columns:62px 1fr 94px 56px 56px 56px 28px;gap:6px;align-items:center}
+    .cfg-cols{padding:6px 16px 7px;font-size:8.5px;font-weight:800;color:#565e74;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #22273a}
+    .cfg-cols span:last-child{display:flex;justify-content:center}
+    #cfgRows{overflow-y:auto;padding:9px 16px;display:flex;flex-direction:column;gap:5px;min-height:110px}
+    .cfg-inp{background:#0b0d12;border:1px solid #22273a;border-radius:7px;color:#e4e8f1;font-family:'DM Sans',sans-serif;font-size:11.5px;padding:6px 8px;min-width:0;width:100%;transition:border-color .15s}
+    .cfg-inp:focus{outline:none;border-color:#e8913a}
+    .cfg-inp.mono{font-family:'Space Grotesk',monospace;font-size:10.5px}
+    .cfg-inp.num{text-align:right}
+    .cfg-inp.err{border-color:#f87171 !important;background:rgba(248,113,113,.08)}
+    .cfg-del{width:26px;height:26px;border-radius:6px;border:1px solid #22273a;background:#0b0d12;color:#565e74;font-size:10px;cursor:pointer;transition:all .15s}
+    .cfg-del:hover{color:#f87171;border-color:#f87171}
+    .cfg-foot{display:flex;align-items:center;gap:8px;padding:10px 16px 14px;border-top:1px solid #22273a}
+    .cfg-add,.cfg-reset,.cfg-cancel,.cfg-save{display:inline-flex;align-items:center;gap:6px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;padding:7px 10px;cursor:pointer;transition:all .15s}
+    .cfg-add{background:#0e1018;border:1px dashed #2a3145;color:#a3e635}
+    .cfg-add:hover{border-color:#a3e635}
+    .cfg-reset{background:#0e1018;border:1px solid #22273a;color:#8891a8}
+    .cfg-reset:hover{border-color:#f87171;color:#f87171}
+    .cfg-spacer{flex:1}
+    .cfg-cancel{background:#0e1018;border:1px solid #22273a;color:#cdd5e4}
+    .cfg-save{background:#e8913a;border:1px solid #e8913a;color:#0b0d12}
+    .cfg-save:hover{filter:brightness(1.12)}
+    @media(max-width:640px){.cfg-cols,.cfg-row{grid-template-columns:52px 1fr 78px 46px 46px 46px 26px}}
     .pp-mini{font-size:9.5px;padding:2px 5px;color:#8891a8}
     .pp-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
     .pp-ct{display:block;font-size:8.5px;color:#565e74;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
@@ -189,6 +219,7 @@
     <button class="tb-btn primary" id="btnGen" onclick="generar()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generar plan</button>
     <button class="tb-btn" id="btnSave" onclick="guardarPlan()" disabled><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
     <button class="tb-btn" id="btnCopy" onclick="copiarJSON()" disabled><i class="fa-solid fa-copy"></i> JSON</button>
+    <button class="tb-btn" id="btnCfg" onclick="abrirCfg()" title="Transportistas: nombre, placa y capacidades"><i class="fa-solid fa-gear"></i> Configuración</button>
     <span id="demo"><i class="fa-solid fa-triangle-exclamation"></i> DEMO sin Firebase</span>
     <span id="estado"></span>
   </header>
@@ -215,6 +246,22 @@
   <div id="movePop" class="veh-pop move-pop"></div>
   <div id="alertasPop"><div class="ap-t">Observaciones del plan</div><div id="alertasBody"></div></div>
   <div id="coordPop" class="veh-pop" style="display:none"></div>
+  <div id="cfgWrap">
+    <div id="cfgPop">
+      <div class="cfg-head"><span><i class="fa-solid fa-gear"></i>Configuración de transportistas</span>
+        <button type="button" class="cfg-x" onclick="cfgCerrar()" title="Cerrar sin guardar"><i class="fa-solid fa-xmark"></i></button></div>
+      <div class="cfg-sub">Modifica, agrega o quita transportistas de la flota. Al guardar, los cambios se aplican al plan actual y quedan guardados en este navegador (también para próximas veces).</div>
+      <div class="cfg-cols"><span>Código</span><span>Transportista</span><span>Placa</span><span title="Capacidad 1 — prioriza la asignación automática (mayor primero)">Cap. 1</span><span title="Capacidad 2 — característica adicional">Cap. 2</span><span title="Capacidad 3 — característica adicional">Cap. 3</span><span title="Quitar"></span></div>
+      <div id="cfgRows"></div>
+      <div class="cfg-foot">
+        <button type="button" class="cfg-add" onclick="cfgAdd()"><i class="fa-solid fa-plus"></i> Añadir transportista</button>
+        <button type="button" class="cfg-reset" onclick="cfgRestaurar()" title="Volver a la flota original del archivo"><i class="fa-solid fa-rotate-left"></i> Restaurar</button>
+        <span class="cfg-spacer"></span>
+        <button type="button" class="cfg-cancel" onclick="cfgCerrar()">Cancelar</button>
+        <button type="button" class="cfg-save" onclick="cfgGuardar()"><i class="fa-solid fa-check"></i> Guardar cambios</button>
+      </div>
+    </div>
+  </div>
   <div id="selBar">
     <span id="selTxt">0 paradas seleccionadas</span>
     <button type="button" id="btnSelMover"><i class="fa-solid fa-right-left"></i> Mover a&hellip;</button>
@@ -223,7 +270,7 @@
 
   <script>
     /* =====================================================================
-       PLANIFICADOR DE ENTREGAS v3.6.1 + v7 (multi-mover, coords, copiar, tooltip cliente)
+       PLANIFICADOR DE ENTREGAS v3.6.1 + v8 (multi-mover, coords, copiar, tooltip cliente, config flota)
        Modelo de fechas: rutas/{D} se carga la víspera; despacho y P&P = D+1.
        Historial: capturas <= D. Plan guardado con fechaDespacho.
        ★ v3.6.1 FIX "Invalid LatLng (NaN,NaN)":
@@ -274,6 +321,18 @@
       { cod:'121',  nom:'TACIPANATA SANDRA',      placa:'PAE1463', c1:406, c2:null,c3:10   },
       { cod:'120',  nom:'ZARATE JEFFERSON',       placa:'TDH0432', c1:null,c2:80,  c3:12   }
     ];
+    /* ★ v8: copia de fábrica + flota guardada en este navegador */
+    var FLOTA_BASE = FLOTA.map(function(v){ return { cod:v.cod, nom:v.nom, placa:v.placa, c1:v.c1, c2:v.c2, c3:v.c3 }; });
+    (function() {
+      try {
+        var g = JSON.parse(localStorage.getItem('plan_flota') || 'null');
+        if (Array.isArray(g) && g.length) {
+          FLOTA.length = 0;
+          g.forEach(function(v){ FLOTA.push({ cod:String(v.cod || ''), nom:String(v.nom || ''), placa:String(v.placa || ''),
+            c1:(v.c1 == null || v.c1 === '' ? null : +v.c1), c2:(v.c2 == null || v.c2 === '' ? null : +v.c2), c3:(v.c3 == null || v.c3 === '' ? null : +v.c3) }); });
+        }
+      } catch (e) {}
+    })();
 
     var FLOTA_SABADO = [ /* ej: ['101','119','176','144'] */ ];
 
@@ -1057,7 +1116,7 @@
       popMoveKey = null;
     }
     document.addEventListener('click', function(e) {
-      if (!e.target.closest('#vehPop') && !e.target.closest('.veh-btn') && !e.target.closest('#movePop') && !e.target.closest('.sb-move') && !e.target.closest('.pp-move') && !e.target.closest('#alertasPop') && !e.target.closest('#btnAlertas')) cerrarPops();
+      if (!e.target.closest('#vehPop') && !e.target.closest('.veh-btn') && !e.target.closest('#movePop') && !e.target.closest('.sb-move') && !e.target.closest('.pp-move') && !e.target.closest('#alertasPop') && !e.target.closest('#btnAlertas') && !e.target.closest('#cfgWrap')) cerrarPops();
     });
     /* ⇄ desde el popup del mapa (captura: Leaflet puede frenar la propagación) */
     document.addEventListener('click', function(e) {
@@ -1074,7 +1133,7 @@
       abrirMovePop(+pm.getAttribute('data-pi'), +pm.getAttribute('data-orden'), pm);
       if (map) map.closePopup();
     }, true);
-    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') cerrarPops(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { cfgCerrar(); cerrarPops(); } });
     window.addEventListener('resize', cerrarPops);
 
     /* ================= INTERACCIONES ================= */
@@ -1193,6 +1252,90 @@
       estado('Veh\u00edculo ' + v.cod + ' \u2192 ' + actual.ruta + (avisos.length ? ' (' + avisos.join(' \u00b7 ') + ')' : '') + (otro ? ' \u00b7 intercambi\u00f3 con ' + otro.ruta : ''), false, avisos.length > 0);
       renderSidebar(planActual);
     }
+    /* ================= CONFIGURACIÓN GENERAL (v8): transportistas ================= */
+    function cfgFilaHTML(f) {
+      f = f || { cod:'', nom:'', placa:'', c1:null, c2:null, c3:null };
+      function val(x){ return (x == null ? '' : String(x)); }
+      return '<div class="cfg-row">' +
+        '<input class="cfg-inp mono" data-cfg="cod" value="' + esc(val(f.cod)) + '" placeholder="ej. 130" maxlength="8">' +
+        '<input class="cfg-inp" data-cfg="nom" value="' + esc(val(f.nom)) + '" placeholder="Nombre del transportista" maxlength="40">' +
+        '<input class="cfg-inp mono" data-cfg="placa" value="' + esc(val(f.placa)) + '" placeholder="AAA0000" maxlength="10" style="text-transform:uppercase">' +
+        '<input class="cfg-inp mono num" data-cfg="c1" value="' + esc(val(f.c1)) + '" inputmode="decimal" title="Capacidad 1 \u2014 prioriza la asignaci\u00f3n autom\u00e1tica (mayor primero)">' +
+        '<input class="cfg-inp mono num" data-cfg="c2" value="' + esc(val(f.c2)) + '" inputmode="decimal" title="Capacidad 2 \u2014 caracter\u00edstica adicional">' +
+        '<input class="cfg-inp mono num" data-cfg="c3" value="' + esc(val(f.c3)) + '" inputmode="decimal" title="Capacidad 3 \u2014 caracter\u00edstica adicional">' +
+        '<button type="button" class="cfg-del" title="Quitar este transportista" onclick="cfgDelFila(this)"><i class="fa-solid fa-trash-can"></i></button>' +
+        '</div>';
+    }
+    function abrirCfg() {
+      cerrarPops();
+      document.getElementById('cfgRows').innerHTML = FLOTA.map(cfgFilaHTML).join('');
+      document.getElementById('cfgWrap').style.display = 'flex';
+    }
+    function cfgCerrar() {
+      var w = document.getElementById('cfgWrap');
+      if (w) w.style.display = 'none';
+    }
+    function cfgAdd() {
+      var maxN = 100;
+      FLOTA.forEach(function(v){ var n = parseInt(v.cod, 10); if (!isNaN(n) && n > maxN) maxN = n; });
+      var div = document.createElement('div');
+      div.innerHTML = cfgFilaHTML({ cod:String(maxN + 1), nom:'', placa:'', c1:null, c2:null, c3:null });
+      var row = div.firstChild;
+      document.getElementById('cfgRows').appendChild(row);
+      row.scrollIntoView({ block:'nearest' });
+      var ins = row.querySelector('[data-cfg="nom"]');
+      if (ins) ins.focus();
+    }
+    function cfgDelFila(btn) {
+      var row = btn.closest('.cfg-row');
+      if (row) row.remove();
+    }
+    function cfgMarca(row, k){ var el = row.querySelector('[data-cfg="' + k + '"]'); if (el) el.classList.add('err'); }
+    function cfgLeerFilas() {
+      return Array.prototype.map.call(document.querySelectorAll('#cfgRows .cfg-row'), function(row) {
+        function g(k){ var el = row.querySelector('[data-cfg="' + k + '"]'); return el ? el.value.trim() : ''; }
+        function n(k){ var t = g(k); if (t === '') return null; var x = +t.replace(',', '.'); return isNaN(x) ? NaN : x; }
+        return { cod:g('cod'), nom:g('nom'), placa:g('placa').toUpperCase(), c1:n('c1'), c2:n('c2'), c3:n('c3'), _el:row };
+      });
+    }
+    function cfgGuardar() {
+      document.querySelectorAll('#cfgRows .cfg-inp').forEach(function(el){ el.classList.remove('err'); });
+      var filas = cfgLeerFilas();
+      if (!filas.length) { estado('Configuraci\u00f3n: la flota no puede quedar vac\u00eda', false, true); return; }
+      var mal = false, vistos = {};
+      filas.forEach(function(f) {
+        if (!f.cod || vistos[f.cod]) { cfgMarca(f._el, 'cod'); mal = true; }
+        if (!f.nom) { cfgMarca(f._el, 'nom'); mal = true; }
+        if (isNaN(f.c1)) { cfgMarca(f._el, 'c1'); mal = true; }
+        if (isNaN(f.c2)) { cfgMarca(f._el, 'c2'); mal = true; }
+        if (isNaN(f.c3)) { cfgMarca(f._el, 'c3'); mal = true; }
+        vistos[f.cod] = true;
+      });
+      if (mal) { estado('Configuraci\u00f3n: revisa c\u00f3digos y nombres (no vac\u00edos ni duplicados) y valores num\u00e9ricos', false, true); return; }
+      var limpia = filas.map(function(f){ return { cod:f.cod, nom:f.nom, placa:f.placa, c1:f.c1, c2:f.c2, c3:f.c3 }; });
+      FLOTA.length = 0;
+      limpia.forEach(function(v){ FLOTA.push(v); });
+      try { localStorage.setItem('plan_flota', JSON.stringify(limpia)); } catch (e) {}
+      if (planActual) {
+        planActual.planes.forEach(function(pl) {
+          if (!pl.transporte) return;
+          var v = FLOTA.filter(function(x){ return x.cod === pl.transporte; })[0];
+          if (v) { pl.conductor = v.nom; pl.placa = v.placa; }
+          else if (/^\d+$/.test(String(pl.transporte))) { pl.conductor = null; pl.placa = null; }
+        });
+        renderSidebar(planActual);
+      }
+      cfgCerrar();
+      estado('Configuraci\u00f3n guardada: ' + FLOTA.length + ' transportistas en la flota');
+    }
+    function cfgRestaurar() {
+      document.getElementById('cfgRows').innerHTML = FLOTA_BASE.map(cfgFilaHTML).join('');
+      estado('Flota original cargada \u2014 pulsa Guardar cambios para aplicarla');
+    }
+    (function() {
+      var w = document.getElementById('cfgWrap');
+      if (w) w.addEventListener('mousedown', function(e){ if (e.target === w) cfgCerrar(); });
+    })();
     /* ================= MOVER CLIENTE DE RUTA ================= */
     function abrirMovePop(piO, orden, btn) {
       if (!planActual) return;
