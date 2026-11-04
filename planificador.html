@@ -98,6 +98,7 @@
     .vp-b.us{background:rgba(255,209,102,.1);color:#ffd166;border:1px solid rgba(255,209,102,.25)}
     .vp-b.hab{background:rgba(94,234,212,.08);color:#5eead4;border:1px solid rgba(94,234,212,.25)}
     .vp-b.na{background:rgba(148,163,184,.08);color:#94a3b8;border:1px solid rgba(148,163,184,.25)}
+    .vp-b.cap{background:rgba(45,212,191,.08);color:#2dd4bf;border:1px solid rgba(45,212,191,.3);font-weight:800}
     .vop-sep{font-size:8.5px;font-weight:800;color:#565e74;text-transform:uppercase;letter-spacing:.06em;padding:5px 9px 2px}
     #alertasPop{position:fixed;z-index:3000;display:none;width:min(380px,92vw);max-height:50vh;overflow-y:auto;background:#14171f;border:1px solid rgba(248,113,113,.35);border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.6);padding:10px 12px}
     #alertasPop .ap-t{font-size:10px;font-weight:800;color:#f87171;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
@@ -251,7 +252,7 @@
       <div class="cfg-head"><span><i class="fa-solid fa-gear"></i>Configuración de transportistas</span>
         <button type="button" class="cfg-x" onclick="cfgCerrar()" title="Cerrar sin guardar"><i class="fa-solid fa-xmark"></i></button></div>
       <div class="cfg-sub">Modifica, agrega o quita transportistas de la flota. Al guardar, los cambios se aplican al plan actual y quedan guardados en este navegador (también para próximas veces).</div>
-      <div class="cfg-cols"><span>Código</span><span>Transportista</span><span>Placa</span><span title="Capacidad 1 — prioriza la asignación automática (mayor primero)">Cap. 1</span><span title="Capacidad 2 — característica adicional">Cap. 2</span><span title="Capacidad 3 — característica adicional">Cap. 3</span><span title="Quitar"></span></div>
+      <div class="cfg-cols"><span>Código</span><span>Transportista</span><span>Placa</span><span title="Capacidad 1 — característica adicional">Cap. 1</span><span title="Capacidad 2 — característica adicional">Cap. 2</span><span title="Capacidad 3 — capacidad del camión en toneladas; el de mayor tonelaje se asigna a la ruta más pesada">Cap. 3</span><span title="Quitar"></span></div>
       <div id="cfgRows"></div>
       <div class="cfg-foot">
         <button type="button" class="cfg-add" onclick="cfgAdd()"><i class="fa-solid fa-plus"></i> Añadir transportista</button>
@@ -270,7 +271,7 @@
 
   <script>
     /* =====================================================================
-       PLANIFICADOR DE ENTREGAS v3.6.1 + v8 (multi-mover, coords, copiar, tooltip cliente, config flota)
+       PLANIFICADOR DE ENTREGAS v3.6.1 + v10 (multi-mover, coords, copiar, tooltip cliente, config flota, capacidad CAP3)
        Modelo de fechas: rutas/{D} se carga la víspera; despacho y P&P = D+1.
        Historial: capturas <= D. Plan guardado con fechaDespacho.
        ★ v3.6.1 FIX "Invalid LatLng (NaN,NaN)":
@@ -426,6 +427,14 @@
       if (!pp || !pp.digitos) return true;
       var d = ultimoDigito(v.placa);
       return d != null && pp.digitos.indexOf(d) === -1;
+    }
+    /* ★ v9: capacidad real del camión — c3 = toneladas */
+    function capDeVehiculo(v) {
+      var t = (v && v.c3 != null) ? +v.c3 : 0;
+      return (isFinite(t) && t > 0) ? Math.round(t * 1000) : CAP_KG;
+    }
+    function utilDe(pl) {
+      return Math.min(100, Math.round((pl.pesoTotal || 0) / ((pl.capKg || CAP_KG) * (pl.viajes || 1)) * 100));
     }
     function flotaDelDia(pp) {
       if (pp && pp.dw === 6 && FLOTA_SABADO.length)
@@ -723,12 +732,18 @@
         var disp = flotaDia.filter(function(v){ return vehiculoPermitido(v, pp) && !usadosV[v.cod]; });
         var hab = camionHabitualRuta(porRuta[pl.ruta], habituales);
         var elegido = hab ? disp.filter(function(v){ return v.cod === hab; })[0] : null;
-        if (!elegido) { disp.sort(function(a,b){ return (b.c1||0) - (a.c1||0); }); elegido = disp[0] || null; }
+        /* ★ v10: sin camión habitual, el de MAYOR CAP3 (tonelaje) va a la ruta más pesada */
+        if (!elegido) { disp.sort(function(a,b){ return (b.c3||0) - (a.c3||0); }); elegido = disp[0] || null; }
         if (elegido) {
           usadosV[elegido.cod] = true;
           pl.transporte = elegido.cod;
           pl.conductor = elegido.nom;
           pl.placa = elegido.placa;
+          /* ★ v9: la carga se compara con la capacidad del camión (c3 en toneladas) */
+          pl.capKg = capDeVehiculo(elegido);
+          pl.utilizacion = utilDe(pl);
+          if (!pl.dedicado && pl.pesoTotal > pl.capKg * (pl.viajes || 1))
+            alertas.push(pl.ruta + ': carga ' + fmtKg(pl.pesoTotal) + ' kg excede la capacidad del camión ' + elegido.cod + ' (' + fmtKg(pl.capKg * (pl.viajes || 1)) + ' kg)');
         } else {
           alertas.push('Pico y placa ' + pp.dia + ' ' + fechaCortaPP(fechaDespacho) + (pp.digitos ? ' (' + pp.digitos.join(',') + ')' : '') + ': sin veh\u00edculos disponibles para ' + pl.ruta);
         }
@@ -928,7 +943,7 @@
       ph += '<div class="pp-row"><i class="fa-solid fa-truck"></i>Veh\u00edculo ' + esc(pl.transporte) + (pl.placa ? ' \u00b7 ' + esc(pl.placa) : '') + (pl.conductor ? ' \u00b7 ' + esc(pl.conductor) : '') + '</div>';
       ph += '<div class="pp-row"><i class="fa-solid fa-tag"></i>' + esc(d.sector || '\u2014') + '</div>';
       ph += '<div class="pp-row"><i class="fa-solid fa-weight-hanging"></i>' + fmtKg(d.peso) + ' kg</div>';
-      if (d.viajes) ph += '<div class="pp-row"><i class="fa-solid fa-repeat" style="color:#ffd166"></i><span style="color:#ffd166;font-weight:700">Requiere ' + d.viajes + ' viajes de ' + fmtKg(CAP_KG) + ' kg</span></div>';
+      if (d.viajes) ph += '<div class="pp-row"><i class="fa-solid fa-repeat" style="color:#ffd166"></i><span style="color:#ffd166;font-weight:700">Requiere ' + d.viajes + ' viajes de ' + fmtKg(pl.capKg || CAP_KG) + ' kg</span></div>';
       ph += '<div class="pp-row"><i class="fa-regular fa-clock"></i>ETA ' + d.etaTxt + (prev ? ' \u00b7 ' + (Math.round(havKm(prev, d)*10)/10) + ' km desde anterior' : ' desde dep\u00f3sito') + '</div>';
       if (d.ventanaTxt) ph += '<div class="pp-row"><i class="fa-solid fa-hourglass-half"></i><span style="color:' + (d.fueraVentana ? '#f87171' : '#34d399') + ';font-weight:700">' + (d.fueraVentana ? 'Fuera de ventana ' : 'Ventana ') + d.ventanaTxt + '</span>' + (d.ventanaFuente ? ' <span style="color:#565e74">(' + esc(d.ventanaFuente) + ')</span>' : '') + '</div>';
       if (d.historial) {
@@ -1021,7 +1036,7 @@
             ? '<span class="veh-txt">' + esc(vAct.nom) + ' \u00b7 ' + esc(vAct.placa) + '</span>'
             : '<span class="veh-txt na">\u2014 sin asignar \u2014</span>') +
           '<i class="fa-solid fa-chevron-down"></i></button></div>';
-        html += '<div class="sb-meta"><span class="sb-badge ' + (pl.dedicado ? 'bd' : 'bp') + '">' + pl.utilizacion + '%' + (pl.viajes > 1 ? ' \u00b7 ' + pl.viajes + 'v' : '') + '</span>' +
+        html += '<div class="sb-meta"><span class="sb-badge ' + (pl.dedicado ? 'bd' : 'bp') + '" title="' + fmtKg(pl.pesoTotal) + ' kg / ' + fmtKg((pl.capKg || CAP_KG) * (pl.viajes || 1)) + ' kg capacidad del cami\u00f3n">' + pl.utilizacion + '%' + (pl.viajes > 1 ? ' \u00b7 ' + pl.viajes + 'v' : '') + '</span>' +
           '<input type="color" class="sb-color" data-pi="' + pi + '" value="' + pl._color + '" title="Elegir color de la ruta">' +
           '<span class="sb-meta-txt"><i class="fa-solid fa-weight-hanging"></i>' + fmtKg(pl.pesoTotal) + ' kg &middot; <i class="fa-solid fa-location-dot"></i>' + pl.paradas + ' &middot; <i class="fa-solid fa-road"></i>' + pl.kmTotal + ' km &middot; <i class="fa-regular fa-clock"></i>fin ~' + pl.finEstimado + '</span></div>';
         html += '<div class="sb-paradas">';
@@ -1060,6 +1075,9 @@
         var sel = (v.cod === pl.transporte);
         var cls = 'vop' + (sel ? ' sel' : '') + (!ok ? ' dis' : '');
         var badges = '';
+        /* ★ v9: capacidad en toneladas y aviso si la carga de la ruta excede */
+        if (v.c3 != null && +v.c3 > 0) badges += '<span class="vp-b cap">' + v.c3 + ' t</span>';
+        if (v.c3 != null && +v.c3 > 0 && pl.pesoTotal > (+v.c3 * 1000) * (pl.viajes || 1)) badges += '<span class="vp-b pp">\u26a0 excede</span>';
         if (!ok) badges += '<span class="vp-b pp">\ud83d\udeab P&P ' + (pp.digitos || []).join(',') + '</span>';
         if (usados[v.cod]) badges += '<span class="vp-b us">\u26a0 en ' + esc(usados[v.cod]) + '</span>';
         if (!enDia) badges += '<span class="vp-b na">\u2694 fuera de flota del d\u00eda</span>';
@@ -1228,6 +1246,7 @@
       var actual = planActual.planes[pi];
       if (codNuevo === '__na__') {
         actual.transporte = 'T?' + (pi + 1); actual.conductor = null; actual.placa = null;
+        actual.capKg = CAP_KG; actual.utilizacion = utilDe(actual); /* ★ v9 */
         cerrarPops();
         estado('Ruta ' + actual.ruta + ' sin veh\u00edculo asignado');
         renderSidebar(planActual);
@@ -1240,14 +1259,25 @@
       var otro = null, otroIdx = -1;
       planActual.planes.forEach(function(p, i) { if (i !== pi && p.transporte === codNuevo) { otro = p; otroIdx = i; } });
       if (otro) {
-        if (prevReal) { otro.transporte = prevT; otro.conductor = actual.conductor; otro.placa = actual.placa; }
-        else { otro.transporte = 'T?' + (otroIdx + 1); otro.conductor = null; otro.placa = null; }
+        if (prevReal) {
+          otro.transporte = prevT; otro.conductor = actual.conductor; otro.placa = actual.placa;
+          otro.capKg = capDeVehiculo(FLOTA.filter(function(x){ return x.cod === prevT; })[0]); /* ★ v9 */
+          otro.utilizacion = utilDe(otro);
+        }
+        else {
+          otro.transporte = 'T?' + (otroIdx + 1); otro.conductor = null; otro.placa = null;
+          otro.capKg = CAP_KG; otro.utilizacion = utilDe(otro); /* ★ v9 */
+        }
       }
       actual.transporte = v.cod; actual.conductor = v.nom; actual.placa = v.placa;
+      actual.capKg = capDeVehiculo(v); actual.utilizacion = utilDe(actual); /* ★ v9: capacidad c3 */
       var avisos = [];
       if (!vehiculoPermitido(v, pp)) avisos.push('ATENCI\u00d3N: restringido por P&P ' + (pp.digitos || []).join(','));
       var enDia = flotaDelDia(pp).some(function(x){ return x.cod === v.cod; });
       if (!enDia) avisos.push('no pertenece a la flota del d\u00eda');
+      /* ★ v9: aviso si la carga de la ruta excede la capacidad del camión */
+      if (actual.pesoTotal > actual.capKg * (actual.viajes || 1))
+        avisos.push('carga ' + fmtKg(actual.pesoTotal) + ' kg excede capacidad ' + fmtKg(actual.capKg * (actual.viajes || 1)) + ' kg');
       cerrarPops();
       estado('Veh\u00edculo ' + v.cod + ' \u2192 ' + actual.ruta + (avisos.length ? ' (' + avisos.join(' \u00b7 ') + ')' : '') + (otro ? ' \u00b7 intercambi\u00f3 con ' + otro.ruta : ''), false, avisos.length > 0);
       renderSidebar(planActual);
@@ -1260,9 +1290,9 @@
         '<input class="cfg-inp mono" data-cfg="cod" value="' + esc(val(f.cod)) + '" placeholder="ej. 130" maxlength="8">' +
         '<input class="cfg-inp" data-cfg="nom" value="' + esc(val(f.nom)) + '" placeholder="Nombre del transportista" maxlength="40">' +
         '<input class="cfg-inp mono" data-cfg="placa" value="' + esc(val(f.placa)) + '" placeholder="AAA0000" maxlength="10" style="text-transform:uppercase">' +
-        '<input class="cfg-inp mono num" data-cfg="c1" value="' + esc(val(f.c1)) + '" inputmode="decimal" title="Capacidad 1 \u2014 prioriza la asignaci\u00f3n autom\u00e1tica (mayor primero)">' +
+        '<input class="cfg-inp mono num" data-cfg="c1" value="' + esc(val(f.c1)) + '" inputmode="decimal" title="Capacidad 1 \u2014 caracter\u00edstica adicional">' +
         '<input class="cfg-inp mono num" data-cfg="c2" value="' + esc(val(f.c2)) + '" inputmode="decimal" title="Capacidad 2 \u2014 caracter\u00edstica adicional">' +
-        '<input class="cfg-inp mono num" data-cfg="c3" value="' + esc(val(f.c3)) + '" inputmode="decimal" title="Capacidad 3 \u2014 caracter\u00edstica adicional">' +
+        '<input class="cfg-inp mono num" data-cfg="c3" value="' + esc(val(f.c3)) + '" inputmode="decimal" title="Capacidad 3 \u2014 capacidad del cami\u00f3n en toneladas; el de mayor tonelaje va a la ruta m\u00e1s pesada">' +
         '<button type="button" class="cfg-del" title="Quitar este transportista" onclick="cfgDelFila(this)"><i class="fa-solid fa-trash-can"></i></button>' +
         '</div>';
     }
@@ -1320,9 +1350,13 @@
         planActual.planes.forEach(function(pl) {
           if (!pl.transporte) return;
           var v = FLOTA.filter(function(x){ return x.cod === pl.transporte; })[0];
-          if (v) { pl.conductor = v.nom; pl.placa = v.placa; }
-          else if (/^\d+$/.test(String(pl.transporte))) { pl.conductor = null; pl.placa = null; }
+          if (v) {
+            pl.conductor = v.nom; pl.placa = v.placa;
+            pl.capKg = capDeVehiculo(v); /* ★ v9: c3 pudo cambiar */
+          }
+          else if (/^\d+$/.test(String(pl.transporte))) { pl.conductor = null; pl.placa = null; pl.capKg = CAP_KG; }
         });
+        planActual.planes.forEach(function(pl){ pl.utilizacion = utilDe(pl); });
         renderSidebar(planActual);
       }
       cfgCerrar();
@@ -1551,7 +1585,7 @@
       plan.alertas = (plan.alertas || []).filter(function(a) { return String(a).indexOf(pref) !== 0; });
       if (fuera > 0) plan.alertas.push(pl.ruta + ': ' + fuera + ' parada(s) fuera de ventana estimada');
       if (pl.dedicado && det.length && det[0].viajes)
-        plan.alertas.push(pl.ruta + ': ' + det[0].clnt + ' (' + fmtKg(det[0].peso) + ' kg) excede ' + fmtKg(CAP_KG) + ' kg \u2192 veh\u00edculo dedicado, ' + det[0].viajes + ' viajes al mismo punto');
+        plan.alertas.push(pl.ruta + ': ' + det[0].clnt + ' (' + fmtKg(det[0].peso) + ' kg) excede ' + fmtKg(cap) + ' kg \u2192 veh\u00edculo dedicado, ' + det[0].viajes + ' viajes al mismo punto');
       if (!pl.dedicado && pesoT > cap * viajes)
         plan.alertas.push(pl.ruta + ': excede la capacidad del cami\u00f3n (' + fmtKg(pesoT) + ' kg / ' + fmtKg(cap * viajes) + ' kg)');
     }
