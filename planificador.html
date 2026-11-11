@@ -218,7 +218,7 @@
     <input type="date" id="inpFecha" class="tb-fecha" title="Fecha de carga de datos en rutas/{fecha} (víspera). El despacho y el pico y placa se evalúan al DÍA SIGUIENTE.">
     <span id="chipPP" class="chip c-h"></span>
     <button class="tb-btn primary" id="btnGen" onclick="generar()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generar plan</button>
-    <button class="tb-btn" id="btnSugerirOrden" onclick="sugerirOrdenHistorico()" disabled title="Reordena las paradas de cada ruta según el orden promedio histórico (de capturas GPS reales en codigosUsados). No toca rutas ni vehículos, solo el orden de visita"><i class="fa-solid fa-chart-line"></i> Orden por histórico</button>
+    <button class="tb-btn" id="btnSugerirOrden" onclick="sugerirOrdenHistorico()" disabled title="Reasigna rutas (clientes que solían ir juntos) y reordena paradas según el orden promedio histórico (de capturas GPS reales en codigosUsados)"><i class="fa-solid fa-chart-line"></i> Rutas y orden por histórico</button>
     <button class="tb-btn" id="btnSave" onclick="guardarPlan()" disabled><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
     <button class="tb-btn" id="btnCopy" onclick="copiarJSON()" disabled><i class="fa-solid fa-copy"></i> JSON</button>
     <button class="tb-btn" id="btnCfg" onclick="abrirCfg()" title="Transportistas: nombre, placa y capacidades"><i class="fa-solid fa-gear"></i> Configuración</button>
@@ -524,6 +524,22 @@
       return { cli: cli, pares: pares };
     }
 
+    /* ================= [★] GRUPOS DIARIOS (para co-ocurrencia) =================
+       Estructura: { "fecha|codigoTransporte": { codc1: true, codc2: true, ... } }
+       Usada por sugerirOrdenHistorico para detectar clientes que sol\u00edan ir
+       juntos en la misma ruta el mismo d\u00eda (cluster por co-ocurrencia). */
+    function construirGruposDiarios(hist) {
+      var grupos = {};
+      hist.forEach(function(dia) {
+        dia.transportes.forEach(function(tr) {
+          var gk = dia.fecha + '|' + tr.codigo;
+          var g = grupos[gk] = grupos[gk] || {};
+          tr.puntos.forEach(function(p) { if (p.codc) g[p.codc] = true; });
+        });
+      });
+      return grupos;
+    }
+
     /* ================= [★] CAMION HABITUAL POR HISTORIAL ================= */
     function habitualesDeHistorial(hist) {
       var camiones = {};
@@ -752,6 +768,7 @@
 
       return { ts: Date.now(), version: 'v3.6.1-3t-pp', capKg: CAP_KG, salidaEstimada: fmtMin(salidaMin),
         diasHistorial: hist.length, deposito: dep, pares: stats.pares,
+        _gruposDiarios: construirGruposDiarios(hist),
         fechaDespacho: fechaDespacho, picoPlaca: pp, alertas: alertas, planes: planes };
     }
 
@@ -827,6 +844,7 @@
       esperarAuth().then(function() {
         var limpio = JSON.parse(JSON.stringify(planActual));
         delete limpio.pares;
+        delete limpio._gruposDiarios;
         limpio.planes.forEach(function(p){ delete p._color; delete p._clave; });
         return db.ref('rutas/' + planActual.fecha + '/plan').set(limpio);
       }).then(function(){ estado('Plan guardado en rutas/' + planActual.fecha + '/plan \u2713'); })
@@ -834,7 +852,10 @@
     }
     function copiarJSON() {
       if (!planActual) return;
-      var txt = JSON.stringify(planActual, null, 2);
+      var copia = JSON.parse(JSON.stringify(planActual));
+      delete copia.pares;
+      delete copia._gruposDiarios;
+      var txt = JSON.stringify(copia, null, 2);
       if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){ estado('JSON copiado al portapapeles \u2713'); });
       else { var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select();
         document.execCommand('copy'); ta.remove(); estado('JSON copiado \u2713'); }
@@ -1636,21 +1657,88 @@
     }
     function sugerirOrdenHistorico() {
       if (!planActual || !planActual.planes || !planActual.planes.length) return;
-      /* contar paradas con/sin histórico y rutas afectadas */
-      var conHist = 0, sinHist = 0, rutasAfectadas = 0, cambiosOrden = 0;
-      planActual.planes.forEach(function(pl) {
-        var tiene = false;
+
+      /* ====== 0) Grupos diarios desde el hist (co-ocurrencia) ====== */
+      var gruposDiarios = planActual._gruposDiarios || {};
+      var hayGrupos = Object.keys(gruposDiarios).length > 0;
+
+      /* ====== 1) Indexar paradas actuales con su codc y ruta ====== */
+      var paradas = []; // [{pi, orden, codc, rutaActual, ordenProm}]
+      planActual.planes.forEach(function(pl, pi) {
         pl.secuencia.forEach(function(d) {
-          if (d.historial && d.historial.ordenProm != null) { conHist++; tiene = true; }
-          else sinHist++;
+          paradas.push({
+            pi: pi, orden: d.orden, codc: d.codc || '',
+            rutaActual: pl.ruta,
+            ordenProm: (d.historial && d.historial.ordenProm != null) ? d.historial.ordenProm : null
+          });
         });
-        if (tiene) rutasAfectadas++;
       });
+
+      /* ====== 2) Stats para el confirm ====== */
+      var conHist = paradas.filter(function(p){ return p.ordenProm != null; }).length;
+      var sinHist = paradas.length - conHist;
       if (!conHist) {
         estado('Sin orden histórico para sugerir. Necesit\u00e1s capturas GPS en codigosUsados/ para los clientes del plan actual.', false, true);
         return;
       }
-      /* Pre-calcular cuántos cambios de posición habría */
+
+      /* ====== 3) Clusters por co-ocurrencia (Union-Find) ======
+         Dos paradas se agrupan si aparecieron juntas en >= UMBRAL_COO días
+         (misma ruta + misma fecha en codigosUsados). Sin gruposDiarios, no hay
+         reasignación de rutas, solo reordenamiento por ordenProm. */
+      var UMBRAL_COO = 2;
+      var nClusters = 0, cambiosRuta = 0;
+      var rutaDestino = {}; // "pi:orden" -> nuevaRuta (solo si cambia)
+
+      if (hayGrupos) {
+        var parent = paradas.map(function(_, i){ return i; });
+        function ufFind(x){ while(parent[x] !== x){ parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+        function ufUnion(a, b){ var ra = ufFind(a), rb = ufFind(b); if(ra !== rb) parent[ra] = rb; }
+
+        for (var a = 0; a < paradas.length; a++) {
+          if (!paradas[a].codc) continue;
+          for (var b = a + 1; b < paradas.length; b++) {
+            if (!paradas[b].codc) continue;
+            if (paradas[a].codc === paradas[b].codc) { ufUnion(a, b); continue; }
+            var cooc = 0;
+            Object.keys(gruposDiarios).forEach(function(gk) {
+              if (gruposDiarios[gk][paradas[a].codc] && gruposDiarios[gk][paradas[b].codc]) cooc++;
+            });
+            if (cooc >= UMBRAL_COO) ufUnion(a, b);
+          }
+        }
+
+        var clusters = {};
+        paradas.forEach(function(p, i) {
+          var r = ufFind(i);
+          (clusters[r] = clusters[r] || []).push(p);
+        });
+        nClusters = Object.keys(clusters).length;
+
+        /* Ruta dominante por cluster: la más común entre los miembros
+           (excluyendo null). Si todos ya están en la misma, no se mueve. */
+        Object.keys(clusters).forEach(function(cr) {
+          var miembros = clusters[cr];
+          var counts = {};
+          miembros.forEach(function(m) {
+            if (m.rutaActual) counts[m.rutaActual] = (counts[m.rutaActual] || 0) + 1;
+          });
+          var claves = Object.keys(counts);
+          if (!claves.length) return;
+          var dominante = claves.reduce(function(a, b){ return counts[a] > counts[b] ? a : b; });
+          var enOtras = miembros.length - counts[dominante];
+          if (enOtras === 0) return; // todos ya en dominante
+          miembros.forEach(function(m) {
+            if (m.rutaActual !== dominante) {
+              rutaDestino[m.pi + ':' + m.orden] = dominante;
+              cambiosRuta++;
+            }
+          });
+        });
+      }
+
+      /* ====== 4) Pre-calcular cambios de posición por ordenProm ====== */
+      var cambiosOrden = 0;
       planActual.planes.forEach(function(pl) {
         var conOrden = pl.secuencia.map(function(d, i) {
           return { i: i, prom: (d.historial && d.historial.ordenProm != null) ? d.historial.ordenProm : Infinity };
@@ -1660,29 +1748,67 @@
           if (o.i !== nuevaPos) cambiosOrden++;
         });
       });
-      var msg = 'Aplicar orden por histórico (desde codigosUsados):\n' +
+
+      var msg = 'Aplicar sugerencia por histórico (desde codigosUsados):\n' +
         '\n- Paradas con orden histórico: ' + conHist +
         (sinHist ? '\n- Paradas sin histórico (quedan al final): ' + sinHist : '') +
-        '\n- Rutas afectadas: ' + rutasAfectadas +
-        '\n- Cambios de posición: ' + cambiosOrden +
-        '\n\nNo se reoptimiza por distancia; el orden refleja la realidad GPS pasada. ' +
+        (hayGrupos ? '\n- Clusters por co-ocurrencia (≥' + UMBRAL_COO + ' días): ' + nClusters +
+                    '\n- Rutas a reasignar (al cluster dominante): ' + cambiosRuta : '') +
+        '\n- Cambios de posición por ordenProm: ' + cambiosOrden +
+        '\n\nNo se reoptimiza por distancia; rutas y orden reflejan la realidad GPS pasada. ' +
         'ETA/km/ventanas se recalculan. ¿Aplicar?';
-      if (!confirm(msg)) { estado('Sugerencia de orden cancelada'); return; }
-      /* aplicar: ordenar secuencia por ordenProm asc, sin histórico al final */
+      if (!confirm(msg)) { estado('Sugerencia cancelada'); return; }
+
+      /* ====== 5) Ejecutar reasignación de rutas ====== */
+      if (cambiosRuta > 0) {
+        var planPorRuta = {};
+        planActual.planes.forEach(function(pl, pi) { planPorRuta[pl.ruta] = pi; });
+
+        var movimientos = Object.keys(rutaDestino).map(function(key) {
+          var partes = key.split(':');
+          var piO = +partes[0], orden = +partes[1];
+          var nuevaRuta = rutaDestino[key];
+          var piD = planPorRuta[nuevaRuta];
+          if (piD == null || piD === piO) return null;
+          var plO = planActual.planes[piO];
+          var idx = -1;
+          for (var i = 0; i < plO.secuencia.length; i++) {
+            if (plO.secuencia[i].orden === orden) { idx = i; break; }
+          }
+          if (idx < 0) return null;
+          var det = plO.secuencia.splice(idx, 1)[0];
+          return { det: det, piD: piD };
+        }).filter(Boolean);
+
+        movimientos.forEach(function(m) {
+          planActual.planes[m.piD].secuencia.push(m.det);
+        });
+
+        // Eliminar planes vacíos
+        planActual.planes = planActual.planes.filter(function(pl) { return pl.secuencia.length > 0; });
+        ocultos = {};
+        selParadas = {};
+        actualizarSelUI();
+      }
+
+      /* ====== 6) Ordenar cada plan por ordenProm asc ====== */
       planActual.planes.forEach(function(pl) {
         pl.secuencia.sort(function(a, b) {
           var pa = (a.historial && a.historial.ordenProm != null) ? a.historial.ordenProm : Infinity;
           var pb = (b.historial && b.historial.ordenProm != null) ? b.historial.ordenProm : Infinity;
-          if (pa === Infinity && pb === Infinity) return 0;  /* mantén orden original entre sin-hist */
+          if (pa === Infinity && pb === Infinity) return 0;
           return pa - pb;
         });
         renumerarYRecalc(planActual, pl);
       });
-      /* re-render sin regenerar desde Firebase */
+
+      /* ====== 7) Re-render ====== */
       renderPlan(planActual); renderSidebar(planActual);
-      estado('Orden aplicado por histórico: ' + conHist + ' paradas en ' + rutasAfectadas +
-             ' ruta(s) \u00b7 ' + cambiosOrden + ' posiciones cambiadas. ' +
-             'ETA y km recalculados. Revis\u00e1 y ajust\u00e1 manualmente si hace falta.');
+
+      estado('Sugerencia aplicada: ' + (cambiosRuta ? cambiosRuta + ' rutas reasignadas, ' : '') +
+             (nClusters ? nClusters + ' clusters, ' : '') +
+             cambiosOrden + ' posiciones cambiadas. ' +
+             'ETA/km recalculados. Revisá y ajustá manualmente si hace falta.');
     }
     function focoParada(key) {
       var m = mkIndex[key];
