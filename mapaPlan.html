@@ -77,6 +77,7 @@
   </div>
   <div class="fila">
     <button id="btnOrden">🧭 Orden de visita</button>
+    <button id="btnSugerir" title="Sugiere rutas y orden basado en entregas reales pasadas (leídas desde Firebase)">📈 Sugerir desde histórico</button>
   </div>
   <div class="fila">
     <span class="mini" id="infoPicoPlaca"></span>
@@ -995,6 +996,257 @@ function calcularOrden(){
                   : "No hay clientes con ruta para ordenar");
 }
 document.getElementById("btnOrden").onclick = calcularOrden;
+
+// ============================================================
+//  SUGERENCIA DESDE HISTÓRICO (realidad de Mapamonitor)
+//  Lee rutas/{fecha}/ejecucion (entregas reales capturadas por
+//  Mapamonitor). Si no existe, cae a /plan (plan estructurado) o
+//  al array guardado por este mismo MapaPlan. Agrega por codc o
+//  nombre normalizado, calcula ruta más común y orden promedio,
+//  y aplica ambas al estado actual (un único lote deshacer).
+// ============================================================
+const DIAS_HISTORICO = 14; // cuántos días hacia atrás buscar
+
+function normNombreHist(s){
+  return String(s == null ? "" : s).toUpperCase().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, " ").trim();
+}
+
+function havM(la1, lo1, la2, lo2){
+  const dLa = (la2 - la1) * Math.PI / 180;
+  const dLo = (lo2 - lo1) * Math.PI / 180;
+  const s = Math.pow(Math.sin(dLa / 2), 2) +
+    Math.cos(la1 * Math.PI / 180) * Math.cos(la2 * Math.PI / 180) *
+    Math.pow(Math.sin(dLo / 2), 2);
+  return 2 * 6371000 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+// Genera los últimos DIAS_HISTORICO días en formato YYYY-MM-DD
+function fechasHistorico(){
+  const out = [];
+  const hoy = new Date();
+  for(let i = 1; i <= DIAS_HISTORICO; i++){
+    const d = new Date(hoy);
+    d.setDate(d.getDate() - i);
+    out.push(d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") +
+            "-" + String(d.getDate()).padStart(2,"0"));
+  }
+  return out;
+}
+
+// Parsea UN día: prueba ejecucion (real) -> plan estructurado -> array guardado.
+// Devuelve { fuente: "real"|"plan", entradas: [{codc,nombre,ruta,orden,lat,lon}] }
+async function cargarDiaHistorico(fecha){
+  const r = await fetch(FIREBASE_URL + "/rutas/" + fecha + ".json" + authQS());
+  if(!r.ok) return null;
+  const obj = await r.json();
+  if(!obj) return null;
+
+  // 1) Realidad capturada por Mapamonitor (preferida)
+  if(obj.ejecucion && obj.ejecucion.transportes){
+    return {
+      fuente: "real",
+      entradas: obj.ejecucion.transportes.map(t => ({
+        codc: t.codc || "",
+        nombre: t.nombre || "",
+        ruta: t.ruta,
+        orden: t.orden || null,
+        lat: aNum(t.lat),
+        lon: aNum(t.lng != null ? t.lng : t.lon)
+      })).filter(e => e.ruta)
+    };
+  }
+
+  // 2) Plan estructurado (lo que se planeó, con secuencia/orden)
+  if(obj.plan && obj.plan.planes){
+    const out = [];
+    obj.plan.planes.forEach(pl => {
+      (pl.secuencia || []).forEach(s => {
+        out.push({
+          codc: s.codc || "",
+          nombre: s.clnt || "",
+          ruta: pl.ruta,
+          orden: s.orden || null,
+          lat: aNum(s.lat),
+          lon: aNum(s.lon)
+        });
+      });
+    });
+    return { fuente: "plan", entradas: out.filter(e => e.ruta) };
+  }
+
+  // 3) Array guardado por MapaPlan (c.ruta + c.orden calculados acá mismo)
+  if(Array.isArray(obj)){
+    return {
+      fuente: "plan",
+      entradas: obj.filter(c => c && c.ruta).map(c => ({
+        codc: c.codc || "",
+        nombre: c.clnt || "",
+        ruta: c.ruta,
+        orden: c.orden || null,
+        lat: aNum(c.lat),
+        lon: aNum(c.lon)
+      }))
+    };
+  }
+
+  return null;
+}
+
+async function sugerirDesdeHistorico(){
+  if(!clientes.length){ estado("Cargá primero los clientes del día"); return; }
+
+  estado("Cargando histórico de entregas (últimos " + DIAS_HISTORICO + " días)…");
+
+  const fechas = fechasHistorico();
+  let diasReales = 0, diasPlan = 0, diasVacios = 0;
+  const agregado = { porCodc: {}, porNombre: {} };
+
+  await Promise.all(fechas.map(async (f) => {
+    try{
+      const dia = await cargarDiaHistorico(f);
+      if(!dia || !dia.entradas.length){ diasVacios++; return; }
+      if(dia.fuente === "real") diasReales++; else diasPlan++;
+
+      dia.entradas.forEach(e => {
+        if(!e.ruta) return;
+        const key = e.codc ? ("c:" + e.codc) : ("n:" + normNombreHist(e.nombre));
+        const tabla = e.codc ? agregado.porCodc : agregado.porNombre;
+        if(!tabla[key]){
+          tabla[key] = {
+            codc: e.codc || "",
+            nombre: e.nombre || "",
+            muestrasRuta: {},
+            muestrasOrden: [],
+            latAcum: 0, lonAcum: 0, nCoord: 0, lat: null, lon: null
+          };
+        }
+        const v = tabla[key];
+        v.muestrasRuta[e.ruta] = (v.muestrasRuta[e.ruta] || 0) + 1;
+        if(e.orden != null) v.muestrasOrden.push(e.orden);
+        if(isFinite(e.lat) && isFinite(e.lon) && (e.lat !== 0 || e.lon !== 0)){
+          v.latAcum += e.lat; v.lonAcum += e.lon; v.nCoord++;
+          v.lat = v.latAcum / v.nCoord; v.lon = v.lonAcum / v.nCoord;
+        }
+      });
+    }catch(e){ diasVacios++; }
+  }));
+
+  const totalEntradas = diasReales + diasPlan;
+  if(!totalEntradas){
+    estado("No hay datos históricos en los últimos " + DIAS_HISTORICO +
+           " días. Para activar la sugerencia, Mapamonitor debe guardar las entregas ejecutadas " +
+           "en rutas/{fecha}/ejecucion (ver función persistirOrdenReal).");
+    return;
+  }
+
+  // Calcular rutaComun + ordenProm para cada cliente histórico
+  const todo = Object.values(agregado.porCodc).concat(Object.values(agregado.porNombre));
+  todo.forEach(v => {
+    v.rutaComun = Object.keys(v.muestrasRuta).reduce(
+      (a, b) => v.muestrasRuta[a] > v.muestrasRuta[b] ? a : b, null);
+    v.ordenProm = v.muestrasOrden.length
+      ? v.muestrasOrden.reduce((s, x) => s + x, 0) / v.muestrasOrden.length
+      : null;
+    v.apariciones = Object.values(v.muestrasRuta).reduce((s, x) => s + x, 0);
+  });
+
+  // Para cada cliente actual, encontrar su sugerencia (codc -> nombre -> cercanía)
+  const sugerencias = [];
+  let sinMatch = 0;
+  clientes.forEach((c, i) => {
+    let match = null;
+    if(c.codc && agregado.porCodc["c:" + c.codc]){
+      match = agregado.porCodc["c:" + c.codc];
+    } else {
+      const nn = normNombreHist(c.clnt);
+      if(nn && agregado.porNombre["n:" + nn]) match = agregado.porNombre["n:" + nn];
+    }
+    if(!match){
+      // fallback: cliente histórico más cercano dentro de 200 m
+      let bd = 200, best = null;
+      for(const v of todo){
+        if(v.lat == null || v.lon == null) continue;
+        const d = havM(c.lat, c.lon, v.lat, v.lon);
+        if(d < bd){ bd = d; best = v; }
+      }
+      match = best;
+    }
+    if(match){
+      sugerencias.push({
+        i, rutaSugerida: match.rutaComun, ordenProm: match.ordenProm,
+        apariciones: match.apariciones
+      });
+    } else {
+      sinMatch++;
+    }
+  });
+
+  if(!sugerencias.length){
+    estado("Ningún cliente actual coincide con el histórico (" + totalEntradas +
+           " días, " + todo.length + " clientes únicos).");
+    return;
+  }
+
+  const cambiosRuta = sugerencias.filter(s => clientes[s.i].ruta !== s.rutaSugerida).length;
+  const conOrden = sugerencias.filter(s => s.ordenProm != null).length;
+  const msg =
+    "Sugerencia desde histórico (" + diasReales + " día(s) real(es) + " + diasPlan + " planeado(s), " +
+    diasVacios + " sin datos).\n" +
+    "\n- Clientes matcheados: " + sugerencias.length +
+    (sinMatch ? "\n- Sin match histórico: " + sinMatch : "") +
+    "\n- Rutas a reasignar: " + cambiosRuta +
+    "\n- Orden recalculado en: " + conOrden + " cliente(s)" +
+    "\n\n¿Aplicar? (podés deshacer con ↩ Deshacer)";
+
+  if(!confirm(msg)){ estado("Sugerencia cancelada"); return; }
+
+  // 1) Reasignar rutas (un único lote para deshacer)
+  const lote = [];
+  sugerencias.forEach(s => {
+    const c = clientes[s.i];
+    if(c.ruta !== s.rutaSugerida){
+      lote.push({i: s.i, de: c.ruta});
+      c.ruta = s.rutaSugerida;
+      pintar(s.i);
+    }
+  });
+  if(lote.length) historial.push(lote);
+
+  // 2) Recalcular orden dentro de cada ruta usando ordenProm
+  const rutas = [...new Set(clientes.map(c => c.ruta).filter(r => r !== null))];
+  rutas.forEach(r => {
+    const grupo = clientes.map((c, i) => ({c, i, prom: null}))
+      .filter(o => o.c.ruta === r);
+    grupo.forEach(o => {
+      const s = sugerencias.find(x => x.i === o.i);
+      if(s && s.ordenProm != null) o.prom = s.ordenProm;
+    });
+    // Con histórico primero (por prom), sin histórico al final
+    grupo.sort((a, b) => {
+      if(a.prom == null && b.prom == null) return 0;
+      if(a.prom == null) return 1;
+      if(b.prom == null) return -1;
+      return a.prom - b.prom;
+    });
+    grupo.forEach((o, idx) => { o.c.orden = idx + 1; });
+  });
+  clientes.forEach(c => { if(c.ruta == null) delete c.orden; });
+
+  // 3) Refrescar UI
+  refrescarTodosTooltips();
+  clientes.forEach((c, i) => marcadores[i].setPopupContent(popupHTML(c)));
+  invalidarOrden(true);
+  poblarDestino();
+  renderPanel();
+  hayCambios = true;
+
+  estado("Sugerencia aplicada: " + cambiosRuta + " rutas reasignadas, orden " +
+         conOrden + "/" + sugerencias.length + " basado en histórico. " +
+         "Revisá y ajustá manualmente. ↩ Deshacer para revertir.");
+}
+document.getElementById("btnSugerir").onclick = sugerirDesdeHistorico;
 
 // ============================================================
 //  ETIQUETAS ON/OFF
