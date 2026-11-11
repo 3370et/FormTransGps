@@ -1035,63 +1035,118 @@ function fechasHistorico(){
   return out;
 }
 
-// Parsea UN día: prueba ejecucion (real) -> plan estructurado -> array guardado.
-// Devuelve { fuente: "real"|"plan", entradas: [{codc,nombre,ruta,orden,lat,lon}] }
+// Parsea UN día. PRIORIDAD: codigosUsados/{fecha} (realidad GPS capturada por
+// Mapamonitor). El orden real = sort por gps.fechaCaptura ascendente dentro
+// de cada ruta (codigo + rutaId). Cae a fallbacks solo si codigosUsados no existe.
+// Devuelve { fuente: "real"|"plan", entradas: [{fecha,codc,nombre,ruta,orden,lat,lon,sector}] }
 async function cargarDiaHistorico(fecha){
-  const r = await fetch(FIREBASE_URL + "/rutas/" + fecha + ".json" + authQS());
-  if(!r.ok) return null;
-  const obj = await r.json();
-  if(!obj) return null;
-
-  // 1) Realidad capturada por Mapamonitor (preferida)
-  if(obj.ejecucion && obj.ejecucion.transportes){
-    return {
-      fuente: "real",
-      entradas: obj.ejecucion.transportes.map(t => ({
-        codc: t.codc || "",
-        nombre: t.nombre || "",
-        ruta: t.ruta,
-        orden: t.orden || null,
-        lat: aNum(t.lat),
-        lon: aNum(t.lng != null ? t.lng : t.lon)
-      })).filter(e => e.ruta)
-    };
-  }
-
-  // 2) Plan estructurado (lo que se planeó, con secuencia/orden)
-  if(obj.plan && obj.plan.planes){
-    const out = [];
-    obj.plan.planes.forEach(pl => {
-      (pl.secuencia || []).forEach(s => {
-        out.push({
-          codc: s.codc || "",
-          nombre: s.clnt || "",
-          ruta: pl.ruta,
-          orden: s.orden || null,
-          lat: aNum(s.lat),
-          lon: aNum(s.lon)
+  // ====== 1) codigosUsados/{fecha} ======
+  // Estructura: { "101": { datosFormulario: {"0":{...},"1":{...}} | [...],
+  //                         rutaId, estado, fechaInicio, ... }, "102": {...} }
+  let r = await fetch(FIREBASE_URL + "/codigosUsados/" + fecha + ".json" + authQS());
+  if(r.ok){
+    const obj = await r.json();
+    if(obj){
+      const entradas = [];
+      Object.keys(obj).forEach(codigo => {
+        const ruta = obj[codigo];
+        if(!ruta || !ruta.datosFormulario) return;
+        const rutaId = ruta.rutaId || codigo;
+        const df = ruta.datosFormulario;
+        // df puede ser objeto {"0":..., "1":...} o array [...]
+        let items;
+        if(Array.isArray(df)){
+          items = df.slice();
+        } else {
+          items = Object.keys(df)
+            .sort((a,b) => Number(a) - Number(b))
+            .map(k => df[k]);
+        }
+        // Solo entradas con gps.fechaCaptura = captura real. Sin gps = no se visitó.
+        const caps = items.filter(it => it && it.gps && it.gps.fechaCaptura);
+        // Orden real de visita: cronológico por fechaCaptura
+        caps.sort((a, b) =>
+          new Date(a.gps.fechaCaptura).getTime() - new Date(b.gps.fechaCaptura).getTime());
+        caps.forEach((it, idx) => {
+          entradas.push({
+            fecha: fecha,
+            codc: it.codclnt || "",
+            nombre: it.item || "",
+            ruta: rutaId,             // agrupación por rutaId histórico
+            orden: idx + 1,           // orden real dentro de esa ruta ese día
+            lat: aNum(it.gps.lat),
+            lon: aNum(it.gps.lng),
+            sector: it.sector || ""
+          });
         });
       });
-    });
-    return { fuente: "plan", entradas: out.filter(e => e.ruta) };
+      if(entradas.length) return { fuente: "real", entradas: entradas };
+    }
   }
 
-  // 3) Array guardado por MapaPlan (c.ruta + c.orden calculados acá mismo)
-  if(Array.isArray(obj)){
-    return {
-      fuente: "plan",
-      entradas: obj.filter(c => c && c.ruta).map(c => ({
-        codc: c.codc || "",
-        nombre: c.clnt || "",
-        ruta: c.ruta,
-        orden: c.orden || null,
-        lat: aNum(c.lat),
-        lon: aNum(c.lon)
-      }))
-    };
+  // ====== 2) Fallback: rutas/{fecha}/ejecucion ======
+  r = await fetch(FIREBASE_URL + "/rutas/" + fecha + "/ejecucion.json" + authQS());
+  if(r.ok){
+    const obj = await r.json();
+    if(obj && obj.transportes){
+      return {
+        fuente: "real",
+        entradas: obj.transportes.map(t => ({
+          fecha: fecha,
+          codc: t.codc || "", nombre: t.nombre || "",
+          ruta: t.ruta, orden: t.orden || null,
+          lat: aNum(t.lat), lon: aNum(t.lng != null ? t.lng : t.lon)
+        })).filter(e => e.ruta)
+      };
+    }
+  }
+
+  // ====== 3) Fallback: rutas/{fecha}/plan (plan estructurado) ======
+  r = await fetch(FIREBASE_URL + "/rutas/" + fecha + "/plan.json" + authQS());
+  if(r.ok){
+    const obj = await r.json();
+    if(obj && obj.planes){
+      const out = [];
+      obj.plan.planes.forEach(pl => {
+        (pl.secuencia || []).forEach(s => {
+          out.push({
+            fecha: fecha, codc: s.codc || "", nombre: s.clnt || "",
+            ruta: pl.ruta, orden: s.orden || null,
+            lat: aNum(s.lat), lon: aNum(s.lon)
+          });
+        });
+      });
+      return { fuente: "plan", entradas: out.filter(e => e.ruta) };
+    }
+  }
+
+  // ====== 4) Fallback: array guardado por MapaPlan ======
+  r = await fetch(FIREBASE_URL + "/rutas/" + fecha + ".json" + authQS());
+  if(r.ok){
+    const obj = await r.json();
+    if(Array.isArray(obj)){
+      return {
+        fuente: "plan",
+        entradas: obj.filter(c => c && c.ruta).map(c => ({
+          fecha: fecha, codc: c.codc || "", nombre: c.clnt || "",
+          ruta: c.ruta, orden: c.orden || null,
+          lat: aNum(c.lat), lon: aNum(c.lon)
+        }))
+      };
+    }
   }
 
   return null;
+}
+
+// Unión-Find simple para clusterizar por co-ocurrencia
+function ufFind(parent, x){
+  while(parent[x] !== x){ parent[x] = parent[parent[x]]; x = parent[x]; }
+  return x;
+}
+function ufUnion(parent, a, b){
+  const ra = ufFind(parent, a), rb = ufFind(parent, b);
+  if(ra !== rb) parent[ra] = rb;
 }
 
 async function sugerirDesdeHistorico(){
@@ -1102,6 +1157,8 @@ async function sugerirDesdeHistorico(){
   const fechas = fechasHistorico();
   let diasReales = 0, diasPlan = 0, diasVacios = 0;
   const agregado = { porCodc: {}, porNombre: {} };
+  const todosRegistros = []; // plano: cada entrada histórica con fecha+ruta+codc
+  const gruposDiarios = {};   // "fecha|rutaId" -> Set(codc)  (para co-ocurrencia)
 
   await Promise.all(fechas.map(async (f) => {
     try{
@@ -1111,10 +1168,18 @@ async function sugerirDesdeHistorico(){
 
       dia.entradas.forEach(e => {
         if(!e.ruta) return;
-        const key = e.codc ? ("c:" + e.codc) : ("n:" + normNombreHist(e.nombre));
+        todosRegistros.push(e);
+
+        // grupo diario por ruta (para co-ocurrencia)
+        const gk = e.fecha + "|" + e.ruta;
+        if(!gruposDiarios[gk]) gruposDiarios[gk] = {};
+        const ckey = e.codc ? ("c:" + e.codc) : ("n:" + normNombreHist(e.nombre));
+        gruposDiarios[gk][ckey] = true;
+
+        // agregado por cliente
         const tabla = e.codc ? agregado.porCodc : agregado.porNombre;
-        if(!tabla[key]){
-          tabla[key] = {
+        if(!tabla[ckey]){
+          tabla[ckey] = {
             codc: e.codc || "",
             nombre: e.nombre || "",
             muestrasRuta: {},
@@ -1122,7 +1187,7 @@ async function sugerirDesdeHistorico(){
             latAcum: 0, lonAcum: 0, nCoord: 0, lat: null, lon: null
           };
         }
-        const v = tabla[key];
+        const v = tabla[ckey];
         v.muestrasRuta[e.ruta] = (v.muestrasRuta[e.ruta] || 0) + 1;
         if(e.orden != null) v.muestrasOrden.push(e.orden);
         if(isFinite(e.lat) && isFinite(e.lon) && (e.lat !== 0 || e.lon !== 0)){
@@ -1136,12 +1201,11 @@ async function sugerirDesdeHistorico(){
   const totalEntradas = diasReales + diasPlan;
   if(!totalEntradas){
     estado("No hay datos históricos en los últimos " + DIAS_HISTORICO +
-           " días. Para activar la sugerencia, Mapamonitor debe guardar las entregas ejecutadas " +
-           "en rutas/{fecha}/ejecucion (ver función persistirOrdenReal).");
+           " días. Mapamonitor guarda las entregas en codigosUsados/{fecha}/{codigo}/datosFormulario/...");
     return;
   }
 
-  // Calcular rutaComun + ordenProm para cada cliente histórico
+  // rutaComun + ordenProm por cliente histórico
   const todo = Object.values(agregado.porCodc).concat(Object.values(agregado.porNombre));
   todo.forEach(v => {
     v.rutaComun = Object.keys(v.muestrasRuta).reduce(
@@ -1152,64 +1216,122 @@ async function sugerirDesdeHistorico(){
     v.apariciones = Object.values(v.muestrasRuta).reduce((s, x) => s + x, 0);
   });
 
-  // Para cada cliente actual, encontrar su sugerencia (codc -> nombre -> cercanía)
-  const sugerencias = [];
+  // ====== MATCH por cliente actual ======
+  // Para cada cliente actual, encontrar su key histórico (codc -> nombre -> cercanía)
+  const matchHistKey = new Array(clientes.length).fill(null);
   let sinMatch = 0;
   clientes.forEach((c, i) => {
-    let match = null;
-    if(c.codc && agregado.porCodc["c:" + c.codc]){
-      match = agregado.porCodc["c:" + c.codc];
-    } else {
+    let key = null;
+    if(c.codc && agregado.porCodc["c:" + c.codc]) key = "c:" + c.codc;
+    else {
       const nn = normNombreHist(c.clnt);
-      if(nn && agregado.porNombre["n:" + nn]) match = agregado.porNombre["n:" + nn];
+      if(nn && agregado.porNombre["n:" + nn]) key = "n:" + nn;
     }
-    if(!match){
-      // fallback: cliente histórico más cercano dentro de 200 m
-      let bd = 200, best = null;
+    if(!key){
+      // fallback por cercanía geográfica (200 m)
+      let bd = 200, bestKey = null;
       for(const v of todo){
         if(v.lat == null || v.lon == null) continue;
         const d = havM(c.lat, c.lon, v.lat, v.lon);
-        if(d < bd){ bd = d; best = v; }
+        if(d < bd){
+          bd = d;
+          bestKey = v.codc ? ("c:" + v.codc) : ("n:" + normNombreHist(v.nombre));
+        }
       }
-      match = best;
+      key = bestKey;
     }
-    if(match){
-      sugerencias.push({
-        i, rutaSugerida: match.rutaComun, ordenProm: match.ordenProm,
-        apariciones: match.apariciones
-      });
-    } else {
-      sinMatch++;
-    }
+    if(key){ matchHistKey[i] = key; }
+    else { sinMatch++; }
   });
 
-  if(!sugerencias.length){
+  const matcheados = matchHistKey.filter(Boolean).length;
+  if(!matcheados){
     estado("Ningún cliente actual coincide con el histórico (" + totalEntradas +
            " días, " + todo.length + " clientes únicos).");
     return;
   }
 
-  const cambiosRuta = sugerencias.filter(s => clientes[s.i].ruta !== s.rutaSugerida).length;
-  const conOrden = sugerencias.filter(s => s.ordenProm != null).length;
+  // ====== CLUSTERS por co-ocurrencia (clientes que van juntos) ======
+  // Umbral: aparecieron juntos en >= 2 días distintos → mismo cluster
+  const UMBRAL_COO = 2;
+  const parent = clientes.map((_, i) => i);
+
+  // Listar indices matcheados para no comparar todos contra todos
+  const matchedIdx = [];
+  matchHistKey.forEach((k, i) => { if(k) matchedIdx.push(i); });
+
+  for(let a = 0; a < matchedIdx.length; a++){
+    for(let b = a + 1; b < matchedIdx.length; b++){
+      const ia = matchedIdx[a], ib = matchedIdx[b];
+      const ka = matchHistKey[ia], kb = matchHistKey[ib];
+      if(ka === kb){ ufUnion(parent, ia, ib); continue; }
+      let cooc = 0;
+      Object.keys(gruposDiarios).forEach(gk => {
+        if(gruposDiarios[gk][ka] && gruposDiarios[gk][kb]) cooc++;
+      });
+      if(cooc >= UMBRAL_COO) ufUnion(parent, ia, ib);
+    }
+  }
+
+  // ====== RUTA SUGERIDA por cluster ======
+  // Para cada cluster, la ruta dominante actual entre sus miembros (excluyendo null)
+  const clusters = {};
+  matchedIdx.forEach(i => {
+    const r = ufFind(parent, i);
+    if(!clusters[r]) clusters[r] = [];
+    clusters[r].push(i);
+  });
+
+  const rutaSugerida = clientes.map(c => c.ruta); // default: mantener
+  let cambiosRuta = 0;
+  Object.keys(clusters).forEach(cr => {
+    const miembros = clusters[cr];
+    // ruta dominante actual (ignorando null/sin ruta)
+    const counts = {};
+    miembros.forEach(i => {
+      const r = clientes[i].ruta;
+      if(r) counts[r] = (counts[r] || 0) + 1;
+    });
+    const dominante = Object.keys(counts).length
+      ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b, null)
+      : null;
+    if(!dominante) return;
+    miembros.forEach(i => {
+      if(clientes[i].ruta !== dominante){
+        rutaSugerida[i] = dominante;
+        cambiosRuta++;
+      }
+    });
+  });
+
+  // ====== ORDEN PROMEDIO por cliente actual ======
+  const ordenPromActual = clientes.map(() => null);
+  matchHistKey.forEach((k, i) => {
+    if(!k) return;
+    const v = agregado.porCodc[k] || agregado.porNombre[k];
+    if(v && v.ordenProm != null) ordenPromActual[i] = v.ordenProm;
+  });
+  const conOrden = ordenPromActual.filter(x => x != null).length;
+
   const msg =
     "Sugerencia desde histórico (" + diasReales + " día(s) real(es) + " + diasPlan + " planeado(s), " +
     diasVacios + " sin datos).\n" +
-    "\n- Clientes matcheados: " + sugerencias.length +
+    "\n- Clientes matcheados: " + matcheados +
     (sinMatch ? "\n- Sin match histórico: " + sinMatch : "") +
-    "\n- Rutas a reasignar: " + cambiosRuta +
+    "\n- Clusters por co-ocurrencia (≥" + UMBRAL_COO + " días): " + Object.keys(clusters).length +
+    "\n- Rutas a reasignar (al cluster dominante): " + cambiosRuta +
     "\n- Orden recalculado en: " + conOrden + " cliente(s)" +
     "\n\n¿Aplicar? (podés deshacer con ↩ Deshacer)";
 
   if(!confirm(msg)){ estado("Sugerencia cancelada"); return; }
 
-  // 1) Reasignar rutas (un único lote para deshacer)
+  // 1) Reasignar rutas (un único lote deshacer)
   const lote = [];
-  sugerencias.forEach(s => {
-    const c = clientes[s.i];
-    if(c.ruta !== s.rutaSugerida){
-      lote.push({i: s.i, de: c.ruta});
-      c.ruta = s.rutaSugerida;
-      pintar(s.i);
+  rutaSugerida.forEach((r, i) => {
+    if(clientes[i].ruta !== r){
+      lote.push({i, de: clientes[i].ruta});
+      clientes[i].ruta = r;
+      pintar(i);
     }
   });
   if(lote.length) historial.push(lote);
@@ -1217,13 +1339,9 @@ async function sugerirDesdeHistorico(){
   // 2) Recalcular orden dentro de cada ruta usando ordenProm
   const rutas = [...new Set(clientes.map(c => c.ruta).filter(r => r !== null))];
   rutas.forEach(r => {
-    const grupo = clientes.map((c, i) => ({c, i, prom: null}))
+    const grupo = clientes.map((c, i) => ({c, i, prom: ordenPromActual[i]}))
       .filter(o => o.c.ruta === r);
-    grupo.forEach(o => {
-      const s = sugerencias.find(x => x.i === o.i);
-      if(s && s.ordenProm != null) o.prom = s.ordenProm;
-    });
-    // Con histórico primero (por prom), sin histórico al final
+    // Con histórico primero (por prom asc), sin histórico al final
     grupo.sort((a, b) => {
       if(a.prom == null && b.prom == null) return 0;
       if(a.prom == null) return 1;
@@ -1242,8 +1360,9 @@ async function sugerirDesdeHistorico(){
   renderPanel();
   hayCambios = true;
 
-  estado("Sugerencia aplicada: " + cambiosRuta + " rutas reasignadas, orden " +
-         conOrden + "/" + sugerencias.length + " basado en histórico. " +
+  estado("Sugerencia aplicada: " + cambiosRuta + " rutas reasignadas, " +
+         Object.keys(clusters).length + " clusters detectados, orden " +
+         conOrden + "/" + matcheados + " basado en histórico. " +
          "Revisá y ajustá manualmente. ↩ Deshacer para revertir.");
 }
 document.getElementById("btnSugerir").onclick = sugerirDesdeHistorico;
