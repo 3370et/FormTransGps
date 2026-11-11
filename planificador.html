@@ -218,6 +218,7 @@
     <input type="date" id="inpFecha" class="tb-fecha" title="Fecha de carga de datos en rutas/{fecha} (víspera). El despacho y el pico y placa se evalúan al DÍA SIGUIENTE.">
     <span id="chipPP" class="chip c-h"></span>
     <button class="tb-btn primary" id="btnGen" onclick="generar()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generar plan</button>
+    <button class="tb-btn" id="btnSugerirOrden" onclick="sugerirOrdenHistorico()" disabled title="Reordena las paradas de cada ruta según el orden promedio histórico (de capturas GPS reales en codigosUsados). No toca rutas ni vehículos, solo el orden de visita"><i class="fa-solid fa-chart-line"></i> Orden por histórico</button>
     <button class="tb-btn" id="btnSave" onclick="guardarPlan()" disabled><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
     <button class="tb-btn" id="btnCopy" onclick="copiarJSON()" disabled><i class="fa-solid fa-copy"></i> JSON</button>
     <button class="tb-btn" id="btnCfg" onclick="abrirCfg()" title="Transportistas: nombre, placa y capacidades"><i class="fa-solid fa-gear"></i> Configuración</button>
@@ -932,6 +933,11 @@
       var totKm = plan.planes.reduce(function(s,p){ return s+p.kmTotal; },0);
       document.getElementById('btnSave').disabled = !FB_OK;
       document.getElementById('btnCopy').disabled = false;
+      /* habilitar “Orden por histórico” solo si alguna parada tiene ordenProm */
+      var hayHistOrden = plan.planes.some(function(p) {
+        return p.secuencia.some(function(d) { return d.historial && d.historial.ordenProm != null; });
+      });
+      document.getElementById('btnSugerirOrden').disabled = !hayHistOrden;
       estado('Despacho ' + plan.fechaDespacho + ': ' + totV + ' veh\u00edculo(s), ' + totC + ' paradas, ' + fmtKg(totKg) + ' kg, ' + totKm + ' km' + (hist.length ? ' \u00b7 historial ' + hist.length + ' d\u00edas' : ' \u00b7 sin historial'));
     }
 
@@ -1588,6 +1594,95 @@
         plan.alertas.push(pl.ruta + ': ' + det[0].clnt + ' (' + fmtKg(det[0].peso) + ' kg) excede ' + fmtKg(cap) + ' kg \u2192 veh\u00edculo dedicado, ' + det[0].viajes + ' viajes al mismo punto');
       if (!pl.dedicado && pesoT > cap * viajes)
         plan.alertas.push(pl.ruta + ': excede la capacidad del cami\u00f3n (' + fmtKg(pesoT) + ' kg / ' + fmtKg(cap * viajes) + ' kg)');
+    }
+    /* ================= SUGERENCIA DE ORDEN POR HISTÓRICO =================
+       Reordena las paradas de cada ruta por su `historial.ordenProm` (orden
+       promedio real derivado de las capturas GPS en codigosUsados). A
+       diferencia de recalcRuta, NO vuelve a correr nearest-neighbor ni 2-opt:
+       el orden histórico se respeta tal cual, solo se recalculan ETA/km/ventanas.
+       Los clientes sin histórico quedan al final de su ruta, en su orden actual.
+       ==================================================================== */
+    function renumerarYRecalc(plan, pl) {
+      var dep = plan.deposito;
+      var salidaMin = hhmm2min(plan.salidaEstimada); if (!isFinite(salidaMin)) salidaMin = 8 * 60;
+      var cap = pl.capKg || CAP_KG, viajes = pl.viajes || 1;
+      var eta = salidaMin, kmTot = 0, pesoT = 0, fuera = 0, prev = dep;
+      pl.secuencia.forEach(function(d, i) {
+        var dKm = prev ? havKm(prev, { lat: num(d.lat), lon: num(d.lon) }) : 0;
+        kmTot += dKm; pesoT += num(d.peso) || 0; eta += dKm / PU.vKmH * 60;
+        var v = ventana(d.ventanaTxt);
+        var fueraV = v ? (eta < v[0] || eta > v[1]) : false;
+        if (fueraV) fuera++;
+        d.orden = i + 1;
+        d.etaTxt = fmtMin(eta);
+        d.kmDesdeAnterior = Math.round(dKm * 10) / 10;
+        d.fueraVentana = fueraV;
+        var aten = (d.historial && d.historial.atenPromMin != null) ? d.historial.atenPromMin : PU.atenMinDef;
+        eta += aten;
+        prev = { lat: num(d.lat), lon: num(d.lon) };
+      });
+      pl.pesoTotal = pesoT;
+      pl.paradas = pl.secuencia.length;
+      pl.kmTotal = Math.round(kmTot * 10) / 10;
+      pl.finEstimado = fmtMin(eta);
+      pl.utilizacion = Math.min(100, Math.round(pesoT / (cap * viajes) * 100));
+      var pref = pl.ruta + ':';
+      plan.alertas = (plan.alertas || []).filter(function(a) { return String(a).indexOf(pref) !== 0; });
+      if (fuera > 0) plan.alertas.push(pl.ruta + ': ' + fuera + ' parada(s) fuera de ventana estimada');
+      if (pl.dedicado && pl.secuencia.length && pl.secuencia[0].viajes)
+        plan.alertas.push(pl.ruta + ': ' + pl.secuencia[0].clnt + ' (' + fmtKg(pl.secuencia[0].peso) + ' kg) excede ' + fmtKg(cap) + ' kg \u2192 veh\u00edculo dedicado, ' + pl.secuencia[0].viajes + ' viajes al mismo punto');
+      if (!pl.dedicado && pesoT > cap * viajes)
+        plan.alertas.push(pl.ruta + ': excede la capacidad del cami\u00f3n (' + fmtKg(pesoT) + ' kg / ' + fmtKg(cap * viajes) + ' kg)');
+    }
+    function sugerirOrdenHistorico() {
+      if (!planActual || !planActual.planes || !planActual.planes.length) return;
+      /* contar paradas con/sin histórico y rutas afectadas */
+      var conHist = 0, sinHist = 0, rutasAfectadas = 0, cambiosOrden = 0;
+      planActual.planes.forEach(function(pl) {
+        var tiene = false;
+        pl.secuencia.forEach(function(d) {
+          if (d.historial && d.historial.ordenProm != null) { conHist++; tiene = true; }
+          else sinHist++;
+        });
+        if (tiene) rutasAfectadas++;
+      });
+      if (!conHist) {
+        estado('Sin orden histórico para sugerir. Necesit\u00e1s capturas GPS en codigosUsados/ para los clientes del plan actual.', false, true);
+        return;
+      }
+      /* Pre-calcular cuántos cambios de posición habría */
+      planActual.planes.forEach(function(pl) {
+        var conOrden = pl.secuencia.map(function(d, i) {
+          return { i: i, prom: (d.historial && d.historial.ordenProm != null) ? d.historial.ordenProm : Infinity };
+        });
+        var ordenado = conOrden.slice().sort(function(a, b) { return a.prom - b.prom; });
+        ordenado.forEach(function(o, nuevaPos) {
+          if (o.i !== nuevaPos) cambiosOrden++;
+        });
+      });
+      var msg = 'Aplicar orden por histórico (desde codigosUsados):\n' +
+        '\n- Paradas con orden histórico: ' + conHist +
+        (sinHist ? '\n- Paradas sin histórico (quedan al final): ' + sinHist : '') +
+        '\n- Rutas afectadas: ' + rutasAfectadas +
+        '\n- Cambios de posición: ' + cambiosOrden +
+        '\n\nNo se reoptimiza por distancia; el orden refleja la realidad GPS pasada. ' +
+        'ETA/km/ventanas se recalculan. ¿Aplicar?';
+      if (!confirm(msg)) { estado('Sugerencia de orden cancelada'); return; }
+      /* aplicar: ordenar secuencia por ordenProm asc, sin histórico al final */
+      planActual.planes.forEach(function(pl) {
+        pl.secuencia.sort(function(a, b) {
+          var pa = (a.historial && a.historial.ordenProm != null) ? a.historial.ordenProm : Infinity;
+          var pb = (b.historial && b.historial.ordenProm != null) ? b.historial.ordenProm : Infinity;
+          if (pa === Infinity && pb === Infinity) return 0;  /* mantén orden original entre sin-hist */
+          return pa - pb;
+        });
+        renumerarYRecalc(planActual, pl);
+      });
+      /* re-render sin regenerar desde Firebase */
+      renderPlan(planActual); renderSidebar(planActual);
+      estado('Orden aplicado por histórico: ' + conHist + ' paradas en ' + rutasAfectadas +
+             ' ruta(s) \u00b7 ' + cambiosOrden + ' posiciones cambiadas. ' +
+             'ETA y km recalculados. Revis\u00e1 y ajust\u00e1 manualmente si hace falta.');
     }
     function focoParada(key) {
       var m = mkIndex[key];
